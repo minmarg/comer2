@@ -31,6 +31,7 @@ Institute of Biotechnology, Vilnius University
    The package is available at:
 
    http://comer2.sourceforge.net
+
    [https://github.com/minmarg/comer2](https://github.com/minmarg/comer2)
 
    The Docker image is available at:
@@ -178,6 +179,7 @@ Institute of Biotechnology, Vilnius University
    delimiter. Sequence data begins on the next line and can occupy multiple
    lines. An example of a multiple alignment in FASTA is provided below:
 
+```
 >d1qhka_ d.100.1.2 (A:) N-terminal domain of RNase HI...
 GNFYAVRKGRE--T---G--------IYNTW---NECKNQVDGYG---GAIYKKFNSYEQAKSFLG
 >gi|28379120|ref|NP_786012.1|:(2-47) ribonuclease H (putative)...
@@ -188,6 +190,7 @@ GNFYAVRKGRE--T---G--------IYNTW---NECKNQVDGYG---GAIYKKFNSYEQAKSFLG
 -KFYAVKKGRK--P---G--------LYLTW---DAAKQQVDGFA---GAVYKSFLTKAEAEEWMA
 >gi|6323890|ref|NP_013961.1|:(1-47) Ribonuclease H1...
 GNFYAVRKGRE--T---G--------IYNTW---NECKNQVDGYG---GAIYKKFNSYEQAKSFLG
+```
 
    The package also contains the perl script blast2fa.pl to convert
    (PSI-)BLAST output to FASTA format. Please type "blast2fa.pl -h" for more
