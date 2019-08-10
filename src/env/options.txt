@@ -1,0 +1,125 @@
+## COMER options
+##
+
+[OPTIONS]
+
+## Output options:
+##
+#   Print hits with e-value below this value            [Real]
+EVAL = 10.0
+#   Number of hits to show in the result list           [Integer]
+NOHITS = 700
+#   Number of alignments to show in the output          [Integer]
+NOALNS = 700
+#   Show statistical parameters below alignments        (0|1)
+SHOW = 1
+#   Maximum length of description lines;                [Integer]
+#   smaller values reduce memory requirements
+DSCLEN = 1024
+#   Width to wrap description lines during output       [40-100000]
+DSCWIDTH = 80
+#   Width to wrap alignments during output              [20-100000]
+ALNWIDTH = 60
+
+## Profile construction options:
+##
+#   Ignore sequences in alignment file with this or     [1-100]
+#   higher level of sequence identity
+IDENTITY = 90
+#   Include the command line text in the profile        (0|1)
+#   (NOTE: occupies additional disk space)
+SHOWCMD = 0
+
+## ADVANCED options
+##
+## Profile construction options:
+##
+#   Weight for pseudocount frequencies                  [Real]
+PCFWEIGHT = 1.5
+#   Minimum fraction (percentage) of alignment an       [1-100]
+#   extent must cover
+MINALNFRN = 5
+#   Minimum number of alignment positions an            [Integer]
+#   extent must consist of (comb. with MINALNFRN)
+MINALNPOS = 10
+#   Initial amino acid substitution matrix:             [Choice]
+#    Blosum80 -- BLOSUM 80% matrix
+#    Blosum62 -- BLOSUM 62% matrix
+#    Blosum45 -- BLOSUM 45% matrix
+#    Pscores -- locally constructed matrix
+#    Gonnet -- Gonnet matrix
+SUBMAT = Gonnet
+
+## Cluster data usage:
+##
+#   Score adjustment
+#    hdpctx -- within statistical framework of HDP
+#    hdpsco -- using scores derived from HDP cluster
+#              distribution along structural alignments
+#    no -- do not apply score adjustment
+SCOADJ = hdpsco
+#   Number of support clusters to use (-1: all)         [Integer]
+SUPCLT = 5
+#   Weight of adjusted scores                           (0.-1.)
+ADJWGT = 0.33 #0.35
+#   Weight for auxiliary scores                         (0.-1.)
+cADJWGT = 0.33
+
+## Normal vector scores
+##
+#   Weight of vector scores (0 -- disables them)        [0.-1.)
+CVSWGT = 0.15
+
+## SS scores:
+##
+#   Weight of SS scores                                 [0.-1.)
+#    (0 -- disables both SSSWGT and SSSHDP)
+#    (in effect only if profiles include SS prediction)
+SSSWGT = 0.12 #0.1 #0.15
+
+
+## Statistical significance estimation
+##
+#   Index of a model for the estimation of statistical  (0|1|2)
+#   significance
+#     (0 -- significance depends on profile lengths)
+#     (1 -- significance depends on profile attributes 
+#       and compositional similarity)
+#     (2 -- same as model 1 but regards the amount of 
+#       data used in simulations)
+SSEMODEL = 2
+
+
+## SEG options:
+##
+#   Invoke high-complexity filter in alignment          (0|1)
+#   columns
+HCFILTER = 0
+#   Window length                                       [Integer]
+HCWINDOW = 12
+#   Low entropy threshold                               [Real]
+HCLOWENT = 3.3
+#   High entropy threshold                              [Real]
+HCHIGHENT = 3.4
+
+#   Invoke low-complexity filtering of query            (0|1)
+INVLCFILTER = 0
+#   Invoke LC filtering for each sequence in            (0|1)
+#   alignment using same parameters below
+LCFILTEREACH = 1
+#   Window length                                       [Integer]
+LCWINDOW = 8
+#   Low entropy threshold                               [Real]
+LCLOWENT = 1.6
+#   High entropy threshold                              [Real]
+LCHIGHENT = 1.6
+#   Distance of equivalence between profile vectors     [Real]
+DISTANCE = 12.96
+
+## Alignment options:
+##
+#   Posterior probability threshold in calculating      [0-1)
+#   expected alignment accuracy;
+#    0 -- maximally extended alignments;
+#   NOTE: values tending to 1 shorten alignments
+MINPP = 0.28

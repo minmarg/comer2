@@ -1,0 +1,4 @@
+[Project]
+Name=cuda-comer
+#Manager=KDevCMakeManager
+VersionControl=kdevgit

@@ -1,0 +1,7 @@
+# install perl scripts
+install(FILES 
+	blast2fa.pl 
+	DESTINATION ${LOCALBINDIR} 
+	PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ
+)
+

@@ -1,0 +1,21 @@
+## Control and statistical parameters for distinct gap penalty schemes
+##
+## Ungapped scheme
+##
+[UNGAPPED]
+Lambda = 1.116276
+K = 0.115812
+H = 0.218508
+Alpha = 0.500000
+Beta = -1.000000
+Scale-factor = 1.000000
+
+## Gapped scheme
+##
+[GAPPED_A_1]
+Lambda = 0.561132
+K = 0.001488
+H = 0.158085
+Alpha = 0.500000
+Beta = -1.000000
+
