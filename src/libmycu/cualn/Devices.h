@@ -10,6 +10,10 @@
 
 #include <stdio.h>
 
+#include <memory>
+
+#include "tsafety/TSCounterVar.h"
+
 #include "liblib/BinarySearchStructure.h"
 
 #define MAXNDEVS 32
@@ -22,17 +26,22 @@ extern Devices DEVPROPs;
 //
 struct DeviceProperties {
     enum {
-        DEVMINMEMORYRESERVE = 200 * ONEM
+        DEVMINMEMORYRESERVE = 200 * ONEM,
+        DEVMINMEMORYRESERVE_16G = 548 * ONEM
     };
     DeviceProperties():
+        shdcnt_(new TSCounterVar),
         devid_(-1),
         ccmajor_(0),ccminor_(0),
         totmem_(0),reqmem_(0),
         textureAlignment_(0),maxTexture1DLinear_(0),
         deviceOverlap_(0),asyncEngineCount_(0),
         computeMode_(0)
-    {};
+    {
+        memset(maxGridSize_, 0, 3 * sizeof(int));
+    };
     DeviceProperties( const DeviceProperties& dprop ):
+        shdcnt_(dprop.shdcnt_),
         devid_(dprop.devid_),
         ccmajor_(dprop.ccmajor_),
         ccminor_(dprop.ccminor_),
@@ -43,7 +52,12 @@ struct DeviceProperties {
         deviceOverlap_(dprop.deviceOverlap_),
         asyncEngineCount_(dprop.asyncEngineCount_),
         computeMode_(dprop.computeMode_)
-    {};
+    {
+        memcpy(maxGridSize_, dprop.maxGridSize_, 3 * sizeof(int));
+    };
+    //shared device counter for synchronization between worker threads 
+    // communicating with the same device:
+    std::shared_ptr<TSCounterVar> shdcnt_;
     int devid_;//device id
     int ccmajor_;//major compute capability
     int ccminor_;//minor compute capability
@@ -51,6 +65,7 @@ struct DeviceProperties {
     size_t reqmem_;//requested amount of global memory
     size_t textureAlignment_;//alignment size for textures
     int maxTexture1DLinear_;//1D texture size
+    int maxGridSize_[3];//maximumm grid size in each dimension
     int deviceOverlap_;//concurrent memory transfer and kernel execution
     int asyncEngineCount_;//number of asynchronous memory transfer engines
     int computeMode_;//enum:
@@ -86,6 +101,8 @@ public:
 
     int GetNDevices() const;
     const DeviceProperties* GetDevicePropertiesAt(int n) const;
+
+    int GetDevIdWithMinRequestedMem() const;
 
 protected:
     void ReadDevices();

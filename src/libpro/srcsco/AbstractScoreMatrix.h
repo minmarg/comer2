@@ -8,9 +8,13 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <map>
+#include <utility>
 
 #include "libpro/srcpro/Configuration.h"
 // #include "libpro/srcpro/GapScheme.h"
@@ -293,6 +297,8 @@ private:
 
     size_t          deltaLength_;//correction for length
     uint64_mt       searchSpace_;//search space
+    //map of length correction values already calculated:
+    std::map<size_t,std::pair<size_t,uint64_mt>> map_lencrtd_;
 };
 
 // INLINES ...

@@ -12,6 +12,7 @@
 
 //device functions for computing SSS, CVS, and HDP scores at once
 
+template <typename Func>
 __global__ void CalcSM_SSSS_CVS2S_HDP1S_SMEMUnroll2x(
     CUBSM_TYPE* __restrict__ sssscores,
     SerializedScoresAttr ssattr,
@@ -24,7 +25,10 @@ __global__ void CalcSM_SSSS_CVS2S_HDP1S_SMEMUnroll2x(
     float hdp1swgt,
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
     uint querposoffset, uint bdb1posoffset, uint bdbCposoffset,
-    CUBSM_TYPE* __restrict__ outscores, 
+    Func roundfunc,
+    CUBSM_TYPE* __restrict__ outscores,
     CUBSM_TYPE* __restrict__ outmodscores );
+
+#include "CuBatchScoreMatrix_ssss_cvs2s_hdp1s.cu"
 
 #endif//__CuBatchScoreMatrix_ssss_cvs2s_hdp1s_h__

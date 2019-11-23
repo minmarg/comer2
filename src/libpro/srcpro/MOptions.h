@@ -66,6 +66,7 @@ DECLAREOPTION( LCHIGHENT, float, float, );
 DECLAREOPTION( DISTANCE, float, float, );
 
 DECLAREOPTION( SCHEME, mystring, mystring, );
+DECLAREOPTION( MAPALN, int, int, );
 DECLAREOPTION( MINPP, float, float, );
 
 DECLAREOPTION( HSPLEN, int, int, );

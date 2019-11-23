@@ -45,6 +45,7 @@ __device__ unsigned long long d_testvar = 0;
 __global__ void CalcSM_Init_SMEMUnroll2x(
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
     uint querposoffset, uint bdb1posoffset, uint bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores,
     CUBSM_TYPE* /*outmodscores*/ )
 {
@@ -195,6 +196,7 @@ __global__ void CalcSM_Init_SMEMUnroll2x(
 __global__ void CalcSMInitSMEMUnroll2(
     uint nqyposs, uint ndb1poss, uint ndbCposs, 
     size_t querposoffset, size_t bdb1posoffset, size_t bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores,
     CUBSM_TYPE* /*outmodscores*/ )
 {
@@ -341,6 +343,7 @@ __global__ void CalcSMInitSMEMUnroll2(
 __global__ void CalcSMInitSMEM(
     uint nqyposs, uint ndb1poss, uint ndbCposs, 
     size_t querposoffset, size_t bdb1posoffset, size_t bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores,
     CUBSM_TYPE* /*outmodscores*/ )
 {
@@ -493,6 +496,7 @@ __global__ void CalcSMInitSMEM(
 __global__ void CalcSMInit(
     uint nqyposs, uint ndb1poss, uint ndbCposs, 
     size_t querposoffset, size_t bdb1posoffset, size_t bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores,
     CUBSM_TYPE* /*outmodscores*/ )
 {

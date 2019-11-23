@@ -173,13 +173,55 @@ void CuDbReader::Open()
 {
     MYMSG("CuDbReader::Open",4);
     if( file_exists( GetDbMainBinName())) {
-        OpenBin();
+        //OpenBin();
+        OpenBin_v2_2();
     }
     else {
+//         throw MYRUNTIME_ERROR("Unrecognized binary format. Please convert the database using `db2bin'.");
         warning("For an n-fold read speedup, "
         "it is highly RECOMMENDED to use a database in binary format "
         "converted by `db2bin'");
         OpenText();
+    }
+}
+
+// -------------------------------------------------------------------------
+// OpenBin_v2_2: open the database in binary format v2.2 and initialize 
+// descriptors
+//
+void CuDbReader::OpenBin_v2_2()
+{
+    MYMSG("CuDbReader::OpenBin_v2_2",4);
+    myruntime_error mre;
+
+    OpenFile(Db::DbFlMAINBin, GetDbMainBinName());
+
+    SetOpenedFileType(Db::DbFlMAINBin);
+
+    try {
+        ResetCurrentPageData();
+        ResetProfileBufferData();
+
+        SetDbSizeInBytes( ObtainDbSizeInBytes(GetOpenedFileType()));
+
+        MYMSGBEGl(3)
+            char msgbuf[BUF_MAX];
+            sprintf( msgbuf, "CuDbReader::OpenBin_v2_2: file_size %zu page_size %zu",
+                    GetDbSizeInBytes(), GetPageSize());
+            MYMSG( msgbuf, 3 );
+        MYMSGENDl
+
+        if( GetMapped())
+            MapFile(GetOpenedFileType());
+
+    } catch( myexception const& ex ) {
+        mre = ex;
+    }
+
+    if(mre.isset()) {
+        SetOpenedFileType(Db::DbFlN);
+        Close();
+        throw mre;
     }
 }
 
@@ -584,4 +626,109 @@ void CuDbReader::ReadPage( TCharStream& chstr )
         chstr.pagenr_++;
         chstr.pageoff_ += bytesread;
     }
+}
+
+
+
+
+
+// =========================================================================
+// ReadDataMapped: get data of size count from the mapped main database 
+// file starting at position filepos;
+// NOTE: dst is assumed to be preallocated to contain `count' bytes
+//
+void CuDbReader::ReadDataMapped( size_t filepos, void* dst, size_t count )
+{
+    MYMSG("CuDbReader::ReadDataMapped",6);
+
+    if( !ValidFileDescriptor(GetOpenedFileType()))
+        throw MYRUNTIME_ERROR("CuDbReader::ReadDataMapped: Invalid file descriptor.");
+
+    if( dst == NULL || count < 1 )
+        throw MYRUNTIME_ERROR("CuDbReader::ReadDataMapped: Invalid arguments.");
+
+    if( profile_buffer_.datlen_ < filepos + count )
+        throw MYRUNTIME_ERROR("CuDbReader::ReadDataMapped: Invalid file position.");
+
+    memcpy( dst, profile_buffer_.data_ + filepos, count );
+}
+
+// -------------------------------------------------------------------------
+// ReadDataDirect: read data of size count to dst from the main database 
+// file starting at position filepos;
+// NOTE: dst is assumed to be preallocated to contain `count' bytes
+//
+void CuDbReader::ReadDataDirect( size_t filepos, void* dst, size_t count )
+{
+    MYMSG("CuDbReader::ReadDataDirect",6);
+
+    if( !ValidFileDescriptor(GetOpenedFileType()))
+        throw MYRUNTIME_ERROR("CuDbReader::ReadDataDirect: Invalid file descriptor.");
+
+    if( dst == NULL || count < 1 )
+        throw MYRUNTIME_ERROR("CuDbReader::ReadDataDirect: Invalid arguments.");
+
+    if( GetDbSizeInBytes() < filepos + count )
+        throw MYRUNTIME_ERROR("CuDbReader::ReadDataDirect: Invalid file position.");
+
+    ssize_t bytesread;
+
+    SeekDbDirect( filepos );
+
+#ifdef OS_MS_WINDOWS
+    DWORD bytesreadhlp = 0;
+    if( !ReadFile(
+        db_fp_[GetOpenedFileType()],
+        dst,
+        (DWORD)count,//nNumberOfBytesToRead (DWORD)
+        &bytesreadhlp,//lpNumberOfBytesRead (LPDWORD)
+        NULL)//lpOverlapped
+      )
+        throw MYRUNTIME_ERROR(
+        "CuDbReader::ReadDataDirect: Read of the main database file failed.");
+
+    bytesread = bytesreadhlp;
+#else
+    bytesread = read(db_fp_[GetOpenedFileType()], dst, count );
+#endif
+
+    if(bytesread < 0)
+        throw MYRUNTIME_ERROR(
+        "CuDbReader::ReadDataDirect: Failed to read the main database file.");
+}
+
+// -------------------------------------------------------------------------
+// SeekDbDirect: seek the main database by changing current file position 
+// (pointer) for reading;
+//
+void CuDbReader::SeekDbDirect( size_t filepos )
+{
+    MYMSG("CuDbReader::SeekDbDirect",7);
+#ifdef __DEBUG__
+    if( GetDbSizeInBytes() < filepos )
+        throw MYRUNTIME_ERROR("CuDbReader::SeekDbDirect: Invalid file position.");
+    if( !ValidFileDescriptor(GetOpenedFileType()))
+        throw MYRUNTIME_ERROR("CuDbReader::SeekDbDirect: Invalid file descriptor.");
+#endif
+
+#ifdef OS_MS_WINDOWS
+    LARGE_INTEGER offset;
+    offset.QuadPart = filepos;
+    offset.LowPart = SetFilePointer(
+        db_fp_[GetOpenedFileType()],
+        offset.LowPart,//lDistanceToMove (LONG), lower double word
+        &offset.HighPart,//lpDistanceToMoveHigh (PLONG), upper double word
+        FILE_BEGIN
+    );
+    if( offset.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+        offset.QuadPart = -1;
+        throw MYRUNTIME_ERROR(
+        "CuDbReader::SeekDbDirect: Setting file position failed.");
+    }
+#else
+    if( lseek( db_fp_[GetOpenedFileType()], filepos, SEEK_SET ) == 
+        (off_t)-1 )
+        throw MYRUNTIME_ERROR(
+        "CuDbReader::SeekDbDirect: Setting file position failed.");
+#endif
 }

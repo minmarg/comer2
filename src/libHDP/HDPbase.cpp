@@ -5,7 +5,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -307,7 +308,7 @@ void HDPbase::CalcPPProbs( Pslvector& lnvar, float* bppr, Pslvector* ppprobs, Iv
     maxlp = -LOC_DBL_MAX;
     //calculate and save log prior probability to lprior
     PriorProbVec( &tvec, &lprior );
-    if( !isfinite( lprior ))
+    if( !std::isfinite( lprior ))
         throw MYRUNTIME_ERROR( preamb + "Invalid HDP prior probability value.");
     if( maxlp < lprior )
         maxlp = lprior;
@@ -325,7 +326,7 @@ void HDPbase::CalcPPProbs( Pslvector& lnvar, float* bppr, Pslvector* ppprobs, Iv
         mtot += mk;
         ProbVecOfDish( &tvec, k, &lprob );
         //density values can be >1
-        if( !isfinite( lprob ))
+        if( !std::isfinite( lprob ))
             throw MYRUNTIME_ERROR( preamb + "Invalid HDP posterior predictive probability value.");
         if( maxlp < lprob )
             maxlp = lprob;
@@ -334,7 +335,7 @@ void HDPbase::CalcPPProbs( Pslvector& lnvar, float* bppr, Pslvector* ppprobs, Iv
     //prior probability and set threshold probability
     pnorm = 0.0f;
     lprior -= maxlp;
-    if( lprior < SLC_LOG_SP_MIN || !isfinite( lprior ))
+    if( lprior < SLC_LOG_SP_MIN || !std::isfinite( lprior ))
         lprior = 0.0f;
     else {
         lprior = expf( lprior );
@@ -358,7 +359,7 @@ void HDPbase::CalcPPProbs( Pslvector& lnvar, float* bppr, Pslvector* ppprobs, Iv
             throw MYRUNTIME_ERROR( preamb + "Invalid number of tables associated with HDP dish.");
         lprob = dish->GetTmpValue();
         lprob -= maxlp;
-        if( lprob < SLC_LOG_SP_MIN || !isfinite( lprob ))
+        if( lprob < SLC_LOG_SP_MIN || !std::isfinite( lprob ))
             lprob = 0.0f;
         else {
             lprob = expf( lprob );
@@ -498,7 +499,7 @@ void HDPbase::MixCLNVar( Pslvector& lnvar, Pslvector* lnmixed ) const
     maxlp = -LOC_DBL_MAX;
     //calculate and save log prior probability to lprior
     PriorProbVec( &tvec, &lprior );
-    if( !isfinite( lprior ))
+    if( !std::isfinite( lprior ))
         throw MYRUNTIME_ERROR( preamb + "Invalid HDP prior probability value.");
     if( maxlp < lprior )
         maxlp = lprior;
@@ -514,7 +515,7 @@ void HDPbase::MixCLNVar( Pslvector& lnvar, Pslvector* lnmixed ) const
             throw MYRUNTIME_ERROR( preamb + "Invalid HDP dish size.");
         ProbVecOfDish( &tvec, k, &lprob );
         //density values can be >1
-        if( !isfinite( lprob ))
+        if( !std::isfinite( lprob ))
             throw MYRUNTIME_ERROR( preamb + "Invalid HDP posterior predictive probability value.");
         if( maxlp < lprob && thlprob <= lprob ) {
             maxlp = lprob;
@@ -537,7 +538,7 @@ void HDPbase::MixCLNVar( Pslvector& lnvar, Pslvector* lnmixed ) const
             continue;
         }
         lprob -= maxlp;
-        if( lprob < SLC_LOG_SP_MIN || !isfinite( lprob ))
+        if( lprob < SLC_LOG_SP_MIN || !std::isfinite( lprob ))
             lprob = 0.0f;
         else
             lprob = expf( lprob );
@@ -548,7 +549,7 @@ void HDPbase::MixCLNVar( Pslvector& lnvar, Pslvector* lnmixed ) const
         lprior = 0.0f;
     else {
         lprior -= maxlp;
-        if( lprior < SLC_LOG_SP_MIN || !isfinite( lprior ))
+        if( lprior < SLC_LOG_SP_MIN || !std::isfinite( lprior ))
             lprior = 0.0f;
         else
             lprior = expf( lprior );
@@ -613,7 +614,7 @@ void HDPbase::MixCLNVar( Pslvector& lnvar, Pslvector* lnmixed ) const
     if(( err = mxdv.Exp()) != 0 )
         throw MYRUNTIME_ERROR( preamb + TranslatePSLError(err));
     pnorm = 1.0f + mxdv.Sum();
-    if( !isfinite( pnorm ))
+    if( !std::isfinite( pnorm ))
         throw MYRUNTIME_ERROR( preamb + "Failed to back-transform HDP-mixed vector.");
     sum = 0.0f;
     for( d = 0; d < dim; d++ ) {

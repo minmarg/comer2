@@ -8,7 +8,7 @@ Institute of Biotechnology, Vilnius University
 
    The COMER method based on sequence profile-profile comparison is one of
    the most sensitive and accurate computational tools developed for protein
-   alignment and homology search. COMER version 2.1 (COMER2) represents one
+   alignment and homology search. COMER version 2.2 (COMER2) represents one
    of the fastest implementations of calculations for sensitive protein
    homology search. High COMER2 performance is achieved by harnessing the
    power of the Graphics processing unit (GPU). Hence, a GPU is expected
@@ -26,15 +26,24 @@ Institute of Biotechnology, Vilnius University
   *  MS Windows 64 (64 bit)
   *  Linux x64 (64 bit)
 
+   COMER2 was also compiled with the `clang` version 6 compiler and is
+   expected to install and run on macOS.
+
+# Hardware requirements
+
+  *  CUDA-enabled GPU(s) with compute capability 3.5 (released in 2012) or
+     above
+  *  2 GB of RAM or more
+
 # Getting the COMER Software
 
    The package is available at:
 
-   http://comer2.sourceforge.net
+   [http://comer2.sourceforge.net](http://comer2.sourceforge.net)
 
    [https://github.com/minmarg/comer2](https://github.com/minmarg/comer2)
 
-   The Docker image is available at:
+   The Docker image will be available at:
 
    https://hub.docker.com/r/minmar/comer2
 
@@ -57,9 +66,15 @@ Institute of Biotechnology, Vilnius University
 
      MS_Windows_installer\COMER2-installer1.msi
 
+   NOTE: system requirements for the COMER2 software installed on Windows are 
+   NVIDIA driver version >=425.25 and CUDA version >=10.1.
+
    On Linux, run the shell script and follow the instructions:
 
      Linux_installer/COMER2-installer1.sh
+
+   NOTE: system requirements for the COMER2 software installed on Linux are 
+   NVIDIA driver version >=418.87 and CUDA version >=10.1.
 
 # Installation from source code
 
@@ -95,8 +110,8 @@ Institute of Biotechnology, Vilnius University
 
   *  GNU Make version 3.81 or greater
 
-  *  GNU GCC compiler version 7.1 or greater (or another C++ compiler that 
-     supports C++11)
+  *  GNU GCC compiler version 4.8 or greater, or LLVM clang compiler
+     version 6 or greater (or another C++ compiler that supports C++11)
 
   *  [the NVIDIA CUDA toolkit](https://developer.nvidia.com/cuda-downloads) version 10.0 or greater
 
@@ -130,13 +145,13 @@ Institute of Biotechnology, Vilnius University
   *  db2bin, developed for converting a COMER profile database to binary
      format. For an n-fold read speedup, it is highly RECOMMENDED to 
      convert a profile database using db2bin before conducting homology
-     search with the "comer" program. Please note that the output of db2bin
+     search with the `comer` program. Please note that the output of db2bin
      is platform-dependent, and db2bin should be invoked on every platform.
 
   *  comer, the main program for homology search using one or more GPUs.
 
    Assuming that a query profile myprofile.pro and a profile database mydb
-   have been obtained, the simplest way to run "comer" is to type:
+   have been obtained, the simplest way to run `comer` is to type:
 
      comer -i myprofile.pro -d mydb -o my_output_directory
 
@@ -144,7 +159,7 @@ Institute of Biotechnology, Vilnius University
    alignments files for each query profile present in the input file
    myprofile.pro.
 
-   "comer" allows for multiple queries in the input file. In that case,
+   `comer` allows for multiple queries in the input file. In that case,
    profiles made using makepro or makepro.sh (makepro.cmd) should be stacked
    one on top of the other. It is also possible to search all profiles in
    one profile database against the profiles of another one:
@@ -160,7 +175,7 @@ Institute of Biotechnology, Vilnius University
 
      comer -i myprofile1.pro -d myprofile2_db -o my_output_directory
 
-   "comer" search, as well as the process of making profiles, can be
+   `comer` search, as well as the process of making profiles, can be
    controlled with options read from the options file options.txt in the var
    directory in the installation path:
 
@@ -193,7 +208,7 @@ GNFYAVRKGRE--T---G--------IYNTW---NECKNQVDGYG---GAIYKKFNSYEQAKSFLG
 ```
 
    The package also contains the perl script blast2fa.pl to convert
-   (PSI-)BLAST output to FASTA format. Please type "blast2fa.pl -h" for more
+   (PSI-)BLAST output to FASTA format. Please type `blast2fa.pl -h` for more
    information.
 
 # Final Notes
@@ -210,6 +225,9 @@ Margelevicius, M. (2018) A low-complexity add-on score for protein remote
 homology search with COMER. Bioinformatics 34(12), 2037-2045.
 
 Margelevicius, M. (2019) Estimating statistical significance of local protein
-profile-profile alignments. BMC Bioinformatics, in press.
+profile-profile alignments. BMC Bioinformatics 20, 419.
+
+Margelevicius, M. (2019) COMER2: GPU-accelerated sensitive and specific
+homology searches. Submitted.
 
 Contact: <mindaugas.margelevicius@bti.vu.lt>

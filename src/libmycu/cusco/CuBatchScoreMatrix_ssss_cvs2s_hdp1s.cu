@@ -60,6 +60,7 @@
 // NOTE: output pointers should be aligned!
 // NOTE: results add to outscores and rewrite outmodscores;
 // 
+template <typename Func>
 __global__ void CalcSM_SSSS_CVS2S_HDP1S_SMEMUnroll2x(
     CUBSM_TYPE* __restrict__ sssscores,
     SerializedScoresAttr ssattr,
@@ -72,6 +73,7 @@ __global__ void CalcSM_SSSS_CVS2S_HDP1S_SMEMUnroll2x(
     float hdp1swgt,
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
     uint querposoffset, uint bdb1posoffset, uint bdbCposoffset,
+    Func roundfunc,
     CUBSM_TYPE* __restrict__ outscores,
     CUBSM_TYPE* __restrict__ outmodscores )
 {
@@ -267,6 +269,7 @@ __global__ void CalcSM_SSSS_CVS2S_HDP1S_SMEMUnroll2x(
         dbcvnm2Cache,
         qrcvCache,
         dbcvCache,
+        roundfunc,
         dbpronr/*col2 < (ndb1poss + ndbCposs)*/,
         s1, s2
     );

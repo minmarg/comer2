@@ -19,6 +19,8 @@
 #include "PMTransModel.h"
 #include "PMProfileModelBase.h"
 
+#define MAXFILESIZE 1099511627776UL
+
 // // class Serializer;
 // // class GapScheme;
 
@@ -34,8 +36,17 @@ namespace pmodel {
 class PMProfileModel: public PMProfileModelBase
 {
 public:
+    enum {v2_2_NSECTIONS = 1/*pps2DLen*/ + 1/*pps2DENO*/ + NUMAA/*pps2DBkgPrbs*/ +
+        P_NSTATES-2/*ptr2DTrnPrbs*/ + NUMAA/*pmv2DTrgFrqs*/ +
+        NUMAA-1/*pmv2DCVentrs*/ + 1/*pmv2DCVprior*/+ 1/*pmv2DCVnorm2*/ +
+        SS_NSTATES/*pmv2DSSsprbs*/ + 1/*pmv2DHDP1prb*/ + 1/*pmv2DHDP1ind*/ +
+        1/*pmv2Daa*/ + 1/*pmv2DSSstate*/ +
+        1/*addrdesc_end_addrs*/ + 1/*addrdesc*/
+    };
+
     // COMER profile format version
     static const char* dataversion;
+    static const char* bindataversion;
     // 
     enum {
         ReadWriteScale = 10000,
@@ -46,6 +57,7 @@ public:
     virtual ~PMProfileModel();
 
     static const char* GetDataVersion() { return dataversion; }
+    static const char* GetBinaryDataVersion() { return bindataversion; }
 
     void            Push( const float vals[PVDIM], const float frqs[PVDIM], char, float weight, float info, float[PS_NSTATES]);
     virtual void    PushAt( const float vals[PVDIM], const float frqs[PVDIM], char, float weight, float info, float[PS_NSTATES], int pos );
@@ -274,9 +286,23 @@ private:
     float       expscore_;              //expected score per column pair
 
     friend class RndMSAGenerator;
+    friend void BinaryWriteProfile_v2_2(
+        std::ofstream& fp,
+        size_t* addrfields,
+        size_t& addrdesc_end_addrs, size_t& addrdesc,
+        const PMProfileModel&, const PMTransModel&);
     friend void BinaryWriteProfile( 
         std::ofstream& fp, const PMProfileModel&, const PMTransModel&);
 };
+
+// -------------------------------------------------------------------------
+
+void CalculateAndWriteAddressTable_v2_2(
+    std::ofstream& fp,
+    const size_t szpreamble,
+    size_t* addrfields,
+    size_t& addrdesc_end_addrs, size_t& addrdesc,
+    const size_t nprofiles, const size_t totalposs );
 
 // -------------------------------------------------------------------------
 // Functions for saving/reading profile model in text format

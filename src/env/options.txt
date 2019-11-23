@@ -61,7 +61,7 @@ SCOADJ = hdpsco
 #   Number of support clusters to use (-1: all)         [Integer]
 SUPCLT = 5
 #   Weight of adjusted scores                           (0.-1.)
-ADJWGT = 0.33 #0.35
+ADJWGT = 0.33
 #   Weight for auxiliary scores                         (0.-1.)
 cADJWGT = 0.33
 
@@ -75,7 +75,7 @@ CVSWGT = 0.15
 #   Weight of SS scores                                 [0.-1.)
 #    (0 -- disables both SSSWGT and SSSHDP)
 #    (in effect only if profiles include SS prediction)
-SSSWGT = 0.12 #0.1 #0.15
+SSSWGT = 0.12
 
 
 ## Statistical significance estimation
@@ -118,8 +118,11 @@ DISTANCE = 12.96
 
 ## Alignment options:
 ##
+#   Realign alignments by a maximum a posteriori        (0|1)
+#   algorithm
+MAPALN = 1                                              
 #   Posterior probability threshold in calculating      [0-1)
-#   expected alignment accuracy;
+#   expected alignment accuracy when MAPALN = 1;
 #    0 -- maximally extended alignments;
 #   NOTE: values tending to 1 shorten alignments
 MINPP = 0.28

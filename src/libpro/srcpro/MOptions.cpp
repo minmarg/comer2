@@ -3,7 +3,8 @@
  *   Institute of Biotechnology, Vilnius University                        *
  ***************************************************************************/
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -123,6 +124,7 @@ DEFINEOPTION( LCHIGHENT, float, 1.6f, value>=0.0f )
 DEFINEOPTION( DISTANCE, float, 12.96f, value>=0.0f )
 
 DEFINEOPTION( SCHEME, mystring, "psLSO", 1 )
+DEFINEOPTION( MAPALN, int, 1, value==0 || value==1 );
 DEFINEOPTION( MINPP, float, 0.3f, value>=0.0f && value<1.0f )
 
 // High-scoring segment pairs
@@ -191,6 +193,7 @@ static void PrivRead()
     ReadDISTANCE();
 
     ReadSCHEME();
+    ReadMAPALN();
     ReadMINPP();
 
     ReadHSPLEN();

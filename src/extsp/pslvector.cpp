@@ -3,7 +3,8 @@
  *   Institute of Biotechnology, Vilnius University                        *
  ***************************************************************************/
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -509,7 +510,7 @@ int Pslvector::Exp()
     int n;
     for( n = 0; n < GetSize(); n++ ) {
         value = GetValueAt( n );
-        if( !isfinite( value ))
+        if( !std::isfinite( value ))
             return PSL_ERR_DOMAIN;
         if( SLC_LOG_SP_MAX < value  )
             return PSL_ERR_DOMAIN;

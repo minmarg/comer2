@@ -38,11 +38,12 @@ int main( int argc, char *argv[] )
     mystring        verbose;
     mystring        devmaxN;
     mystring        devmaxmem;
-    mystring        devcachep;
+    mystring        ngrids;
     mystring        expct_prolen;
     mystring        devpass2memp;
-    bool            nofilemap = 0;//do not use file mapping
-    bool            cpufreemem = 0;//free unused memory
+    mystring        nbuffers;//number of input buffers for read
+    bool            filemap = 0;//use file mapping
+    bool            unpinned = 0;//use unpinned CPU memory
     bool            listdevices = 0;//whether to list available devices
     int             verblev = 0;//suppress warnings
 
@@ -60,14 +61,15 @@ int main( int argc, char *argv[] )
         {"o", my_required_argument, 'o'},
         {"p", my_required_argument, 'p'},
         {"v", my_optional_argument, 'v'},
-        {"h", my_no_argument,       'h'},
+        {"h", my_no_argument, 'h'},
         {"dev-N", my_required_argument, 'N'},
         {"dev-mem", my_required_argument, 'M'},
-        {"dev-cachep", my_required_argument, 'C'},
+        {"dev-ngrids", my_required_argument, 'G'},
         {"dev-expected-length", my_required_argument, 'L'},
         {"dev-pass2memp", my_required_argument, '2'},
-        {"io-nofilemap", my_no_argument, 'F'},
-        {"cpu-freemem",my_no_argument, 'R'},
+        {"io-nbuffers", my_required_argument, 'B'},
+        {"io-filemap", my_no_argument, 'F'},
+        {"io-unpinned", my_no_argument, 'P'},
         {"dev-list", my_no_argument, 'D'},
         { NULL, my_n_targflags, 0 }
     };
@@ -93,11 +95,12 @@ int main( int argc, char *argv[] )
                     //
                     case 'N':   devmaxN = myoptarg; break;
                     case 'M':   devmaxmem = myoptarg; break;
-                    case 'C':   devcachep = myoptarg; break;
+                    case 'G':   ngrids = myoptarg; break;
                     case 'L':   expct_prolen = myoptarg; break;
                     case '2':   devpass2memp = myoptarg; break;
-                    case 'F':   nofilemap = 1; break;
-                    case 'R':   cpufreemem = 1; break;
+                    case 'B':   nbuffers = myoptarg; break;
+                    case 'F':   filemap = 1; break;
+                    case 'P':   unpinned = 1; break;
                     case 'D':   listdevices = 1; break;
                     default:    break;
                 }
@@ -175,13 +178,13 @@ int main( int argc, char *argv[] )
             }
             CLOPTASSIGN( DEV_MEM, c );
         }
-        if( !devcachep.empty()) {
-            c = strtol( devcachep.c_str(), &p, 10 );
+        if( !ngrids.empty()) {
+            c = strtol( ngrids.c_str(), &p, 10 );
             if( errno || *p ) {
-                error( "Invalid argument of option dev-cachep." );
+                error( "Invalid argument of option dev-ngrids." );
                 return EXIT_FAILURE;
             }
-            CLOPTASSIGN( DEV_CACHEP, c );
+            CLOPTASSIGN( DEV_NGRIDS, c );
         }
         if( !expct_prolen.empty()) {
             c = strtol( expct_prolen.c_str(), &p, 10 );
@@ -199,9 +202,17 @@ int main( int argc, char *argv[] )
             }
             CLOPTASSIGN( DEV_PASS2MEMP, c );
         }
+        if( !nbuffers.empty()) {
+            c = strtol( nbuffers.c_str(), &p, 10 );
+            if( errno || *p ) {
+                error( "Invalid argument of option io-nbuffers." );
+                return EXIT_FAILURE;
+            }
+            CLOPTASSIGN( IO_NBUFFERS, c );
+        }
 
-        CLOPTASSIGN( IO_NOFILEMAP, nofilemap );
-        CLOPTASSIGN( CPU_FREEMEM, cpufreemem );
+        CLOPTASSIGN( IO_FILEMAP, filemap );
+        CLOPTASSIGN( IO_UNPINNED, unpinned );
 
         DEVPROPs.RegisterDevices();
 
@@ -506,82 +517,4 @@ int main( int argc, char *argv[] )
     return ret;
 }
 
-
-
 // -------------------------------------------------------------------------
-#include <iostream>
-#include <algorithm>
-#include <vector>
-#include <chrono>
-#include "liblib/mysort.h"
-inline int mycom( const void* vec, size_t n1, size_t n2)
-{
-    std::vector<float>* v = (std::vector<float>*)vec;
-//     return (*v)[n1]<(*v)[n2]? -1: 1;
-    return (*v)[n1]<(*v)[n2]? -1: ((*v)[n1]==(*v)[n2]? 0: 1);
-}
-inline int myswp( void* vec, size_t n1, size_t n2)
-{
-    std::vector<float>* v = (std::vector<float>*)vec;
-    float tmp = (*v)[n1]; (*v)[n1]=(*v)[n2]; (*v)[n2]=tmp;
-    return 0;
-}
-inline int mycom3( const void* vec, size_t n1, size_t n2)
-{
-    float* v = (float*)vec;
-//     return v[n1]<v[n2]? -1: 1;
-    return v[n1]<v[n2]? -1: (v[n1]==v[n2]? 0: 1);
-}
-inline int myswp3( void* vec, size_t n1, size_t n2)
-{
-    float* v = (float*)vec;
-    float tmp = v[n1]; v[n1]=v[n2]; v[n2]=tmp;
-    return 0;
-}
-void mytestsort()
-{
-    std::vector<float> myvec(20000000);
-    std::generate(myvec.begin(), myvec.end(), []{return (float)rand()/(float)INT_MAX;});
-
-    std::vector<float> vec1(myvec);
-
-    auto start = std::chrono::high_resolution_clock::now();
-    std::sort(vec1.begin(), vec1.end());
-    auto finish = std::chrono::high_resolution_clock::now();
-
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
-
-    std::cout << "std::sort (" << vec1.size() << ") took " << duration << "ms" << std::endl;
-    for(int i=0;i<10;i++)
-        std::cout << "  " << vec1[i] << std::endl;
-    std::cout << std::endl;
-
-    std::vector<float> vec2(myvec);
-
-    start = std::chrono::high_resolution_clock::now();
-    HeapSort( &vec2, vec2.size(), mycom, myswp );
-    finish = std::chrono::high_resolution_clock::now();
-
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
-
-    std::cout << "HeapSort took (" << vec2.size() << ") took " << duration << "ms" << std::endl;
-    for(int i=0;i<10;i++)
-        std::cout << "  " << vec2[i] << std::endl;
-    std::cout << std::endl;
-
-    float* vec3 = (float*)malloc(myvec.size()*sizeof(float));
-    for(size_t i=0;i<myvec.size();i++)
-        vec3[i] = myvec[i];
-
-    start = std::chrono::high_resolution_clock::now();
-    HeapSort( vec3, myvec.size(), mycom3, myswp3 );
-    finish = std::chrono::high_resolution_clock::now();
-
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
-
-    std::cout << "HeapSort took (" << myvec.size() << ") took " << duration << "ms" << std::endl;
-    for(int i=0;i<10;i++)
-        std::cout << "  " << vec3[i] << std::endl;
-    std::cout << std::endl;
-    free(vec3);
-}

@@ -39,10 +39,6 @@
 // it is better to control this MACRO through compiler options (at compile time)
 #define CUMAPDP_USEFASTAPPROXMATH 
 
-//write output alignments at the beginning of each section dedicated for a 
-// pair of profiles (practically no extra cost in performance incurred)
-// #define CUMAPDP_MAP_FINAL_ALNS_AT_BEG
-
 
 //MAPDP probability scales at each query position
 enum TMAPDPProbScales {

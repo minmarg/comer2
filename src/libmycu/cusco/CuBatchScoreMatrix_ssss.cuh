@@ -130,4 +130,47 @@ void CalcSSSScoreSMEMUnroll2x(
 //     }
 }
 
+// -------------------------------------------------------------------------
+// CalcSSSScoreSMEMUnroll2x_1: calculate one sss score according to the 
+// SMEMUnroll2x approach
+//
+template <int OFF>
+__device__ __forceinline__
+void CalcSSSScoreSMEMUnroll2x_1( 
+    const float ssswgt,
+    const CUBSM_TYPE* __restrict__ ssssCache,
+    const FPTYPE (* __restrict__ qrposCache)[SMINIT_2DCACHE_DIM],
+    const FPTYPE (* __restrict__ dbposCache)[SMINIT_2DCACHE_DIM],
+    float& score1 )
+{
+    int ndxtabrow, ndxtabcol;
+    FPTYPE f1, f2;
+    score1 = 0.0f;
+    //
+    //unrolling behaviour is default, and here it gives substantial speedup
+    #pragma unroll
+    for( int i = 0; i < pmv2DNoSSSps; i++ ) {
+        //exchanged access for qrposCache
+        f1 = qrposCache[i][threadIdx.y];
+        ndxtabrow = GetSSSSTableIndex( i/*s1*/, f1 );
+        #pragma unroll
+        for( int j = 0; j < pmv2DNoSSSps; j++ ) {
+            f2 = dbposCache[OFF+j][threadIdx.x];
+            ndxtabcol = GetSSSSTableIndex( j, f2 );
+            score1 += f1 * f2 * 
+                SerializedScoresSM<CUBSM_TYPE>::GetScoreP1E1( ssssCache, ndxtabrow, ndxtabcol );
+        }
+    }
+
+    f1 = qrposCache[pmv2DNoSSSps-1][threadIdx.y];
+    if( -99.f < score1 ) {
+        //{{NOTE: test (wrt sens and aq) and REMOVE the block below; CHECKED!
+        f2 = dbposCache[OFF+pmv2DNoSSSps-1][threadIdx.x];
+        score1 += (f1 + 0.1f) * (f2 + 0.1f) * 0.1111111f;//(/9)
+        //}}
+        score1 -= CONSTSSSSSHIFT;
+        score1 *= ssswgt;
+    }
+}
+
 #endif//__CuBatchScoreMatrix_ssss_h__

@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 
+#include <vector>
 #include <fstream>
 
 #include "liblib/BinarySearchStructure.h"
@@ -21,6 +22,11 @@ class PMTransModel;
 class PMProfileModel;
 }
 
+extern "C" {
+extern const char* patstrEND;
+extern const size_t lenstrEND;
+}
+
 // _________________________________________________________________________
 // Class Db
 //
@@ -29,6 +35,9 @@ class PMProfileModel;
 class Db
 {
 public:
+    enum {
+        cMaxNOpenedFiles = 510//maximum number of opened database files
+    };
     //enumerations for signature...
     enum {  BEGTEXT,    //signature text
             DATAVER,    //version number
@@ -44,10 +53,14 @@ public:
 
     //Structure type for keeping information about profile file
     struct DbP1 {
-        DbP1( mystring& name, size_t len ): fname_(name), prolen_(len) {}
-        DbP1( const char* name, size_t len ): fname_(name), prolen_(len) {}
+        DbP1( mystring& name, size_t len, FILE* fp, long fpos )
+        : fname_(name), prolen_(len), fp_(fp), fpos_(fpos) {}
+        DbP1( const char* name, size_t len, FILE* fp, long fpos )
+        : fname_(name), prolen_(len), fp_(fp), fpos_(fpos) {}
         mystring fname_;//filename of profile
         size_t  prolen_;//profile length
+        FILE* fp_;//file descriptor; NULL if file is not opened
+        long fpos_;//file position where a profile begins
     };
 
 public:
@@ -59,7 +72,8 @@ public:
     Db( const char* output, char* arguments[], int no_args/*, int = FrequencyStore::TFreqSimpleVector */);
     virtual ~Db();
 
-//     void                    ReadInFrequencies();        //read frequencies
+    void SetMaxNumberOfOpenFiles( int value ) { nmaxopenfiles_ = value;}
+    int GetMaxNumberOfOpenFiles() const { return nmaxopenfiles_;}
 
     virtual void    Open();//open database
     virtual void    Close( TFile = DbFlN );//close a file of the database
@@ -67,6 +81,7 @@ public:
     bool            Next( pmodel::PMProfileModel&, pmodel::PMTransModel&/*, int goc, int gec, bool */);
     bool            Eof() const { return GetNextSym() == EOF; }
 
+    void            MakeBin_v2_2();//make binary database v2.2
     void            MakeBin();//make binary database
     void            Make();//make the database: the main function
 
@@ -78,7 +93,6 @@ public:
     void        SetDbPos( const fpos_t* );
 
     const char*     GetDbName() const           { return dbname_; }
-//     size_t          GetNoVectors() const        { return no_vectors_; }
     size_t          GetNoSequences() const      { return no_sequences_; }
     uint64_mt       GetDbSize() const           { return db_size_; }
 
@@ -95,15 +109,7 @@ public:
                         SetSegDistance( distance );
                     }
 
-//     const FrequencyStore*   GetStore() const { return store; }
-
     const DbProProbs* GetProProbs() const { return &proprobs_; }
-
-
-//     static mystring                 GetDistributionText( int type );
-//     static TFVectorProbabilities    GetDistributionType( const mystring& distrstr );
-//     static TFVectorProbabilities    GetDistributionType()           { return FrequencyStore::GetDistributionType(); }
-//     static void SetDistributionType( TFVectorProbabilities type )   { FrequencyStore::SetDistributionType( type ); }
 
 protected:
     explicit Db( /*int = FrequencyStore::TFreqSimpleVector */);
@@ -114,7 +120,7 @@ protected:
     bool    PreprocessNeeded() const;
     void    PreprocessProfile( pmodel::PMProfileModel&, pmodel::PMTransModel& );
     void    ProcessFile( const char* filename, void* );//process profile given in file
-    void    WriteFile( const char* filename, void* );//append profile to the database
+    void    WriteFile( const DbP1&, void* );//append profile to the database
 //     void    WriteFrequencies( FILE* fd );//write frequency vectors to file descriptor
 
 
@@ -141,26 +147,14 @@ protected:
     void    IncProbNormTerm( float prob ) { probnorm_ += prob; }
     void    ResetProbNormTerm() { probnorm_ = 0.0f; }
 
-//     void    SetNoVectors( size_t value ) { no_vectors_ = value; }
-//     void    IncNoVectors() { no_vectors_++; }
     void    SetNoSequences( size_t value ) { no_sequences_ = value; }
     void    IncNoSequences() { no_sequences_++; }
     void    SetDbSize( uint64_mt value ) { db_size_ = value; }
     void    IncDbSize( size_t amount ) { db_size_ += amount; }
 
-//     int     GetFreqStrType() const { return fstrtype_; }
-
-//     bool        AreVectorsConsistent( float reps ) const;//verify the consistency of the vectors
-
     void        WriteBinaryHeader( std::ofstream& );
     void        WriteTextHeader( FILE* );
-    void        ReadTextHeader( FILE* );
-
-    void        PutHeader( FILE* );//put database header
-    void        GetHeader( FILE* );//get database header
-
-    void        PutSignature( FILE* );//put database signature
-    void        GetSignature( FILE* );//get database signature
+    void        ReadTextHeader( FILE*, size_t* nseqs = NULL, uint64_mt* dbsize = NULL );
 
     int     GetNextSym() const { return nextsym_; }
     void    SetNextSym( int value ) { nextsym_ = value; }
@@ -170,22 +164,25 @@ private:
     void    NewSortedFiles();
     void    DestroySortedFiles();
 
+    void    ClearFPVector();
+
 private:
     const char*         dbname_;            //database name
     const char*         data_dir_;          //directory of profiles
     const char* const*  profiles_;          //names of profiles used to make up the database
     const int           no_profs_;          //number of profiles given as argument
 
+    int nmaxopenfiles_;                     //maximum number of open files
+    int nopenfiles_;                        //current number of open files
+    std::vector<FILE*> fps_;                //descriptors of open files
     BinarySearchStructure*  srtfiles_;      //profile filenames sorted by profile length
 
     float               probnorm_;          //normalization constant for probabilities
-//     size_t              no_vectors_;        //overall number of frequency vectors within the database
     size_t              no_sequences_;      //number of profiles in the database
     uint64_mt           db_size_;           //size of database
 
     int                 nextsym_;           //next symbol from file
     FILE*               db_fp_[DbFlN];      //file descriptors of the database
-//     Serializer          serializer;         //object to serialize data to file
 
     char*               name_buffer_;       //auxiliary buffer
 
@@ -195,10 +192,6 @@ private:
     float               seglowentropy_;     //seg low entropy threshold
     float               seghighentropy_;    //seg high entropy threshold
     float               segdistance_;       //seg distance to consider vectors equivalent
-
-
-//     FrequencyStore*     store_;             //store of frequency vectors
-//     const int           fstrtype_;          //frequency structure type
 
     DbProProbs          proprobs_;          //profile pair probabilities
 
@@ -262,34 +255,6 @@ void Db::SetDbPos( const fpos_t* pos )
     SetNextSym( nsym );
 }
 
-// // -------------------------------------------------------------------------
-// // AreVectorsConsistent: verify whether the number of vectors is valid
-// //
-// inline
-// bool Db::AreVectorsConsistent( float reps ) const
-// {
-//     if( !GetStore())
-//         return false;
-//     return GetStore()->IsConsistent( reps, no_vectors_ );
-// }
-
-// // -------------------------------------------------------------------------
-// // GetDistributionText: get distribution description given type
-// //
-// inline
-// mystring Db::GetDistributionText( int distr )
-// {
-//     return( FrequencyStore::GetDistributionText( distr ));
-// }
-
-// // GetDistributionType: get distribution type given description
-// //
-// inline
-// TFVectorProbabilities Db::GetDistributionType( const mystring& distrstr )
-// {
-//     return( FrequencyStore::GetDistributionType( distrstr ));
-// }
-
 // -------------------------------------------------------------------------
 // Db::ProlenComparer: compare the lengths of two profiles encoded by the 
 // pointers
@@ -330,6 +295,18 @@ void Db::DestroySortedFiles()
     }
     delete srtfiles_;
     srtfiles_ = NULL;
+}
+
+// -------------------------------------------------------------------------
+// ClearFPVector: clear all elements in the vector of file descriptors after 
+// closing all open descriptors
+inline
+void Db::ClearFPVector()
+{
+    for( size_t i = 0; i < fps_.size(); i++)
+        if(fps_[i])
+            fclose(fps_[i]);
+    fps_.clear();
 }
 
 #endif//__Db_h__

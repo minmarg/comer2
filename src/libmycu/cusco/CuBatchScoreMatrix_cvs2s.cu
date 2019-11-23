@@ -48,13 +48,15 @@
 // other types of memory;
 // NOTE: output pointers should be aligned!
 // NOTE: results add to both outscores and outmodscores;
-// 
+//
+template <typename Func>
 __global__ void CalcSM_CVS2S_SMEMUnroll2x(
     CUBSM_TYPE* __restrict__ cvs2scores,
     SerializedCVS2ScoresAttr attr,
     float cvswgt,
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
     uint querposoffset, uint bdb1posoffset, uint bdbCposoffset,
+    Func roundfunc,
     CUBSM_TYPE* __restrict__ outscores,
     CUBSM_TYPE* __restrict__ outmodscores )
 {
@@ -208,7 +210,7 @@ __global__ void CalcSM_CVS2S_SMEMUnroll2x(
     //log odds score of normal vectors
     //NOTE: test (wrt sens and aq) and REMOVE typecast to int: CHANGED!
     score1 = attr.CVS_CTERM_ + attr.CVS_PowerNU0_ * __logf(score1) - 
-             /*(int)*/qrcvpriorCache[threadIdx.y] - /*(int)*/dbcvpriorCache[0][threadIdx.x];
+             roundfunc(qrcvpriorCache[threadIdx.y]) - roundfunc(dbcvpriorCache[0][threadIdx.x]);
     //translate score
     score1 = 
 #ifdef CVS2S_SCORESE1S1Step2
@@ -231,7 +233,7 @@ __global__ void CalcSM_CVS2S_SMEMUnroll2x(
         //log odds score of normal vectors
         //NOTE: test (wrt sens and aq) and REMOVE typecast to int: CHANGED!
         score2 = attr.CVS_CTERM_ + attr.CVS_PowerNU0_ * __logf(score2) - 
-                /*(int)*/qrcvpriorCache[threadIdx.y] - /*(int)*/dbcvpriorCache[1][threadIdx.x];
+                roundfunc(qrcvpriorCache[threadIdx.y]) - roundfunc(dbcvpriorCache[1][threadIdx.x]);
         //translate score
         score2 = 
 #ifdef CVS2S_SCORESE1S1Step2
@@ -296,4 +298,3 @@ __global__ void CalcSM_CVS2S_SMEMUnroll2x(
         atomicAdd( &outmodscores[row + col2], (score2 - CONSTCVSSHIFT) * cvswgt );
     }
 }
-

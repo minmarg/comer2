@@ -415,10 +415,10 @@ __global__ void ExecDP_Btck_Unroll32x(
 
 #ifdef CUDP_INIT_BTCK_TESTPRINT
         if(pronr==CUDP_INIT_BTCK_TESTPRINT)
-            printf(" >>> d=%u(%u) s=%u (t%02u): MAX= %.6f COORD= %x wrt= %d xpos= %d\n", 
-                    blkdiagnum,lastydiagnum,blockIdx.x,threadIdx.x, 
-                    maxscCache, maxscCoords, x+CUDP_2DCACHE_DIM_X-1<(int)dbprolenCache, 
-                    x+CUDP_2DCACHE_DIM_X-1);
+            printf(" >>> d=%u(%u) s=%u (t%02u): len= %d MAX= %.6f COORD= %x (yx %u %u) wrt= %d xpos= %d\n", 
+                    blkdiagnum,lastydiagnum,blockIdx.x,threadIdx.x, dbprolenCache,
+                    maxscCache, maxscCoords, GetCoordY(maxscCoords),GetCoordX(maxscCoords),
+                    x+CUDP_2DCACHE_DIM_X-1<(int)dbprolenCache, x+CUDP_2DCACHE_DIM_X-1);
 #endif
 
 
@@ -442,6 +442,15 @@ __global__ void ExecDP_Btck_Unroll32x(
 
     //write the buffer of maximum scores
     if( 0 <= x+ndx && x+ndx < (int)dbprolenCache ) {
+//         //{{NOTE:no need to use the check as the scores in the triangle areas are highly negative.
+//         //if((uint)dbprolenCache <= GetCoordX(maxscCoords) || 
+//         //    nqyposs <= GetCoordY(maxscCoords)) {
+//         if(!CellYXinValidArea(nqyposs, dbprolenCache, crnedgelen, 
+//                 GetCoordY(maxscCoords), GetCoordX(maxscCoords))) {
+//             maxscCache = CUBDP_Q(0);
+//             maxscCoords = 0;
+//         }
+//         //}}
         qpos = dpdssDiagM * nTDPDiagScoreSubsections * dblen;
         //tmpdpdiagbuffers[qpos + dbpos+ndx] = maxscCache[threadIdx.x];
         if( CUDP_2DCACHE_DIM_D <= y ) {

@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include <memory>
 #include <functional>
@@ -174,9 +175,9 @@ void AlnWriter::Execute( void* )
             //save response code
             rsp_msg_ = rspmsg;
 
-//             //unlock the mutex and notify the parent using the cv
-//             lck_msg.unlock();
-//             cv_msg_.notify_one();
+            //unlock the mutex and notify waiting threads
+            lck_msg.unlock();
+            cv_msg_.notify_all();
 
             if( reqmsg < 0 || reqmsg == wrtthreadmsgTerminate)
                 //terminate execution
@@ -194,7 +195,7 @@ void AlnWriter::Execute( void* )
     if( mre.isset()) {
         error( mre.pretty_format().c_str());
         SetResponseError();
-//         cv_msg_.notify_one();
+        cv_msg_.notify_all();
         return;
     }
 }
@@ -259,7 +260,7 @@ inline
 void AlnWriter::InitializeVectors()
 {
     MYMSG( "AlnWriter::InitializeVectors", 5 );
-    int nrecords = GetTotoalNumberOfRecords();
+    int nrecords = GetTotalNumberOfRecords();
 
     allsrtindxs_.reserve(nrecords);
     allsrtvecs_.reserve(nrecords);
@@ -282,8 +283,8 @@ void AlnWriter::InitializeVectors()
         int szfinal = (int)finalsrtindxs_.size();
         finalsrtindxs_.resize(szfinal + vec_srtindxs_[qrysernr_][i]->size());
         //std::iota(finalprevend, finalsrtindxs_.end(), szfinal);
-		std::iota(finalsrtindxs_.begin() + szfinal, finalsrtindxs_.end(), szfinal);
-	}
+        std::iota(finalsrtindxs_.begin() + szfinal, finalsrtindxs_.end(), szfinal);
+    }
 
     finalsrtindxs_dup_ = finalsrtindxs_;
 }
@@ -300,6 +301,8 @@ void AlnWriter::WriteResults()
     static const unsigned int annotlen = ANNOTATIONLEN;
     const unsigned int dsclen = MOptions::GetDSCLEN();
     const unsigned int dscwidth = MOptions::GetDSCWIDTH();
+    const size_t nhits = MOptions::GetNOHITS();
+    const size_t nalns = MOptions::GetNOALNS();
     static const bool printname = false;
     myruntime_error mre;
     mystring filename;
@@ -339,7 +342,7 @@ void AlnWriter::WriteResults()
         if( hitsfound )
         {
             //first, buffer annotations
-            for( size_t i = 0; i < p_finalindxs_->size(); i++ ) {
+            for( size_t i = 0; i < p_finalindxs_->size() && i < nhits; i++ ) {
                 const char* annot = 
                     ( *vec_annotptrs_[qrysernr_][allsrtvecs_[ (*p_finalindxs_)[i] ]] )
                                                [allsrtindxs_[ (*p_finalindxs_)[i] ]];
@@ -355,7 +358,7 @@ void AlnWriter::WriteResults()
                 srchinfo, written );
 
             //now, buffer alignments
-            for( size_t i = 0; i < p_finalindxs_->size(); i++ ) {
+            for( size_t i = 0; i < p_finalindxs_->size() && i < nalns; i++ ) {
                 const char* aln = 
                       ( *vec_alnptrs_[qrysernr_][allsrtvecs_[ (*p_finalindxs_)[i] ]] )
                                                [allsrtindxs_[ (*p_finalindxs_)[i] ]];

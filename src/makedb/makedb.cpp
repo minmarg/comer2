@@ -27,6 +27,7 @@ int main( int argc, char *argv[] )
     mystring        myoptarg;
     mystring        output;
     mystring        directory;
+    mystring        strmaxopenfiles;
     mystring        segwindow;
     mystring        seglowent;
     mystring        seghighent;
@@ -45,6 +46,7 @@ int main( int argc, char *argv[] )
     static struct myoption long_options[] = {
         {"d", my_required_argument, 'd'},
         {"o", my_required_argument, 'o'},
+        {"n", my_required_argument, 'n'},
         //
         {"U", my_no_argument,       'U'},
         {"w", my_required_argument, 'w'},
@@ -73,6 +75,7 @@ int main( int argc, char *argv[] )
                     case 'v':   suppress = false; break;
                     case 'd':   directory = myoptarg; break;
                     case 'o':   output = myoptarg; break;
+                    case 'n':   strmaxopenfiles = myoptarg; break;
                     case 'U':   usingseg = true; break;
                     case 'w':   segwindow = myoptarg; usingseg = true; break;
                     case 'f':   seglowent = myoptarg; usingseg = true; break;
@@ -99,6 +102,8 @@ int main( int argc, char *argv[] )
 
     mystring valSUBMAT = MOptions::GetSUBMAT();
 
+    int nmaxopenfiles = Db::cMaxNOpenedFiles;
+
     size_t  segwinlenval = SEGProfile::scszDefSegProWinLength;
     float   seglowentval = SEGProfile::scfpDefSegProLowEntropy;
     float   seghighentval = SEGProfile::scfpDefSegProHighEntropy;
@@ -107,6 +112,19 @@ int main( int argc, char *argv[] )
     if( output.empty()) {
         error( "Output database name is not specified." );
         return EXIT_FAILURE;
+    }
+    if( !strmaxopenfiles.empty()) {
+        intvalue = strtol( strmaxopenfiles.c_str(), &p, 10 );
+
+        if( errno || *p ) {
+            error( "Maximum number of open files is invalid." );
+            return EXIT_FAILURE;
+        }
+        if( intvalue < 0 ) {
+            error( "Maximum number of open files is negative." );
+            return EXIT_FAILURE;
+        }
+        nmaxopenfiles = intvalue;
     }
     //{{SEG options
     if( !segwindow.empty()) {
@@ -175,6 +193,8 @@ int main( int argc, char *argv[] )
 
         if( !db )
             throw MYRUNTIME_ERROR("Not enough memory.");
+
+        db->SetMaxNumberOfOpenFiles(nmaxopenfiles);
 
         if( usingseg ) {
             db->SetSegParameters(

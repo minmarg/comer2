@@ -8,7 +8,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,7 +35,6 @@ public:
     void PerformCompleteDynProgDevice(
         cudaStream_t streamproc,
         CUBSM_TYPE scorethld,
-        bool calcbcktrcmatrix,
         size_t ndb1pros,
         size_t ndbCpros,
         size_t querprosOmtd,
@@ -54,12 +54,11 @@ public:
         unsigned int* maxcoordsbuf,
         char* btckdata,
         //output values for host:
-        unsigned int* attrpassed
+        unsigned int* globvarsbuf
     );
 
     void PerformDynProgDevice(
         cudaStream_t streamproc,
-        bool calcbcktrcmatrix,
         size_t ndb1pros,
         size_t ndbCpros,
         size_t querprosOmtd,
@@ -100,7 +99,32 @@ public:
         CUBDP_TYPE* tmpdpbotbuffer,
         unsigned int* maxcoordsbuf,
         char* btckdata,
-        unsigned int* attrpassed
+        unsigned int* globvarsbuf
+    );
+
+    void FinalizeALNDynProgDevice(
+        cudaStream_t streamproc,
+        float logevthld,
+        size_t ndb1pros,
+        size_t querprosOmtd,
+        size_t ndb1prosOmtd,
+        size_t ndbCprosOmtd,
+        size_t nqyposs,
+        size_t ndb1poss,
+        size_t ndbCposs,
+        size_t dbxpad,
+        size_t querposoffset,
+        size_t bdb1posoffset,
+        size_t bdbCposoffset,
+        CUBSM_TYPE* scores,//[in]
+        CUBDP_TYPE* tmpdpdiagbuffers,//[in]
+        float* dp2alndatbuffers,//[in/out]
+        unsigned int* attrpassed,
+        size_t dbxpad2,
+        size_t cbdbalnlen2,
+        unsigned int* maxcoordsbuf,//[in]
+        char* btckdata,//[in]
+        char* outalns//[out]
     );
 
     static unsigned int GetMaxRegBlockDiagonalElems( 

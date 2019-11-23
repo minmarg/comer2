@@ -32,7 +32,7 @@ bool file_exists( const char* name,
 	mode )
 {
 #ifdef OS_MS_WINDOWS
-    struct _stat info;
+    struct _stat64 info;
 #else
     struct stat info;
 #endif
@@ -40,7 +40,7 @@ bool file_exists( const char* name,
 
     if( name ) {
 #ifdef OS_MS_WINDOWS
-        if( _stat( name, &info ) < 0 ) {
+        if( _stat64( name, &info ) < 0 ) {
 #else
         if( stat( name, &info ) < 0 ) {
 #endif

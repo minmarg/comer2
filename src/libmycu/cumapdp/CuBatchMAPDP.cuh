@@ -6,7 +6,8 @@
 #ifndef __CuBatchMAPDP_h__
 #define __CuBatchMAPDP_h__
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 

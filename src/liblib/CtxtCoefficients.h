@@ -7,7 +7,8 @@
 #define __CtxtCoefficients__
 
 #include <stdio.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include "mybase.h"
 
 

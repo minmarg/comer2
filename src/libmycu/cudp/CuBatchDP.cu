@@ -5,7 +5,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #include "libmycu/cucom/cucommon.h"
 #include "libmycu/cupro/PM2DVectorFields.h"
 #include "libmycu/cupro/PMBatchProData.h"
+#include "libmycu/cupro/CuDeviceMemory.cuh"
 #include "libmycu/cusco/CuBatchScoreMatrix_com.h"
 #include "CuBatchDP_com.h"
 #include "CuBatchDP_init.cuh"
@@ -23,6 +25,7 @@
 #include "CuBatchDP_init_corr.cuh"
 #include "CuBatchDP_init_btck.cuh"
 #include "CuBatchDP_final.cuh"
+#include "CuBatchDP_aln_final.cuh"
 #include "CuBatchDP.cuh"
 
 // #define TEST_CUBATCHDP_INIT_BLOCK2
@@ -62,7 +65,6 @@ CuBatchDP::~CuBatchDP()
 void CuBatchDP::PerformCompleteDynProgDevice(
     cudaStream_t streamproc,
     CUBSM_TYPE scorethld,
-    bool calcbcktrcmatrix,
     size_t ndb1pros,
     size_t ndbCpros,
     size_t querprosOmtd,
@@ -81,12 +83,11 @@ void CuBatchDP::PerformCompleteDynProgDevice(
     CUBDP_TYPE* tmpdpbotbuffer,
     unsigned int* maxcoordsbuf,
     char* btckdata,
-    unsigned int* attrpassed )
+    unsigned int* globvarsbuf )
 {
     MYMSG( "CuBatchDP::PerformCompleteDynProgDevice", 4 );
     PerformDynProgDevice(
         streamproc,
-        calcbcktrcmatrix,
         ndb1pros, ndbCpros,
         querprosOmtd, ndb1prosOmtd, ndbCprosOmtd,
         dbpro1len,
@@ -112,7 +113,7 @@ void CuBatchDP::PerformCompleteDynProgDevice(
         maxcoordsbuf,
         btckdata,
         //[out:]
-        attrpassed
+        globvarsbuf
     );
 }
 
@@ -121,7 +122,6 @@ void CuBatchDP::PerformCompleteDynProgDevice(
 // profile-profile pairs representing part of query and database profiles on 
 // device;
 // streamproc, CUDA stream for computations;
-// calcbcktrcmatrix, indication of calculating back-tracing matrix;
 // ndb1pros, number of profiles over the db1 positions passed;
 // ndbCpros, number of profiles over the complementary dbC positions;
 // querprosOmtd, number of query profiles up to this query profile;
@@ -148,7 +148,6 @@ void CuBatchDP::PerformCompleteDynProgDevice(
 //
 void CuBatchDP::PerformDynProgDevice(
     cudaStream_t streamproc,
-    bool /*calcbcktrcmatrix*/,
     size_t ndb1pros,
     size_t ndbCpros,
     size_t querprosOmtd,
@@ -349,6 +348,7 @@ void CuBatchDP::PerformDynProgDevice(
 // maxscoordsbuf, device memory allocated for the coordinates of maximum 
 // alignment scores;
 // btckdata, device memory allocated for backtracking information;
+// globvarsbuf, device memory section allocated for global variables;
 //
 void CuBatchDP::FinalizeDynProgDevice(
     cudaStream_t streamproc,
@@ -371,7 +371,7 @@ void CuBatchDP::FinalizeDynProgDevice(
     unsigned int* maxcoordsbuf,
     char* btckdata,
     //[out:]
-    unsigned int* /*attrpassed*/ )
+    unsigned int* globvarsbuf )
 {
     MYMSG( "CuBatchDP::FinalizeDynProgDevice", 4 );
     const mystring preamb = "CuBatchDP::FinalizeDynProgDevice: ";
@@ -410,7 +410,8 @@ void CuBatchDP::FinalizeDynProgDevice(
             tmpdpdiagbuffers, 
             tmpdpbotbuffer,
             maxcoordsbuf,
-            btckdata
+            btckdata,
+            globvarsbuf
         );
         MYCUDACHECKLAST;
 
@@ -422,7 +423,109 @@ void CuBatchDP::FinalizeDynProgDevice(
         throw mre;
 }
 
+// -------------------------------------------------------------------------
+// FinalizeALNDynProgDevice: finalize dynamic programming analogous to 
+// FinalizeMAPDP_MAP to draw alignments in parallel on device;
+// streamproc, CUDA stream for computations;
+// ...
+//
+void CuBatchDP::FinalizeALNDynProgDevice(
+    cudaStream_t streamproc,
+    float logevthld,
+    size_t ndb1pros,
+    size_t querprosOmtd,
+    size_t ndb1prosOmtd,
+    size_t ndbCprosOmtd,
+    size_t nqyposs,
+    size_t ndb1poss,
+    size_t ndbCposs,
+    size_t dbxpad,
+    size_t querposoffset,
+    size_t bdb1posoffset,
+    size_t bdbCposoffset,
+    CUBSM_TYPE* scores,//[in]
+    CUBDP_TYPE* tmpdpdiagbuffers,//[in]
+    float* dp2alndatbuffers,//[in/out]
+    unsigned int* attrpassed,
+    size_t dbxpad2,
+    size_t cbdbalnlen2,
+    unsigned int* maxcoordsbuf,//[in]
+    char* btckdata,//[in]
+    char* outalns )//[out]
+{
+    MYMSG( "CuBatchDP::FinalizeALNDynProgDevice", 4 );
+    const mystring preamb = "CuBatchDP::FinalizeALNDynProgDevice: ";
+    myruntime_error mre;
 
+    //TODO: add the option of showing SS states in the output
+    const bool printsss = MOptions::GetSSSWGT() > 0.0f;
+
+#ifdef __DEBUG__
+    size_t ndbxposs = ndb1poss + ndbCposs;
+    size_t szsspace = nqyposs * ndbxposs;//search space
+    if( szsspace < 1 )
+        throw MYRUNTIME_ERROR( preamb + "Invalid size of search space.");
+#endif
+
+    size_t pass2ndbpros = attrpassed[CuDeviceMemory::dgvNPassedPros];
+    size_t pass2ndbxposs = attrpassed[CuDeviceMemory::dgvNPosits];
+
+    if( pass2ndbpros < 1 || pass2ndbxposs < 1 )
+        return;
+
+    //set db length for alignments, including padding
+    size_t dbalnlen2 = pass2ndbxposs + pass2ndbpros * (nqyposs+1);
+    dbalnlen2 = ALIGN_UP( dbalnlen2, CUL2CLINESIZE );
+
+    if(cbdbalnlen2 != dbalnlen2)
+        throw MYRUNTIME_ERROR( preamb +
+            "Inconsistent total alignment length.");
+
+    //execution configuration
+    dim3 nthrds(CUDP_2DCACHE_DIM_D,1,1);
+    dim3 nblcks((uint)pass2ndbpros,1,1);
+
+
+    try {
+        MYMSGBEGl(3)
+            char msgbuf[KBYTE];
+            mystring strbuf = preamb;
+            sprintf(msgbuf, 
+                "%sKernelFinalizeALNDynProg execution configuration: ",NL);
+            strbuf += msgbuf;
+            sprintf(msgbuf, 
+                "grid size= (%u,%u,%u) block size= (%u,%u,%u);%s# db pros= %zu",
+                nblcks.x, nblcks.y, nblcks.z, nthrds.x, nthrds.y, nthrds.z, NL, pass2ndbpros );
+            strbuf += msgbuf;
+            MYMSG(strbuf.c_str(),3);
+        MYMSGENDl
+
+        FinalizeDP_ALN<<<nblcks,nthrds,0,streamproc>>>(
+            printsss,
+            logevthld,
+            (uint)ndb1pros,
+            (uint)querprosOmtd, (uint)ndb1prosOmtd, (uint)ndbCprosOmtd,
+            (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
+            (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+            (uint)(pass2ndbxposs + dbxpad2),//dblen2
+            (uint)dbxpad2,
+            (uint)dbalnlen2,
+            scores,
+            tmpdpdiagbuffers, 
+            maxcoordsbuf,
+            btckdata,
+            dp2alndatbuffers,
+            outalns
+        );
+        MYCUDACHECKLAST;
+
+    } catch( myexception const& ex ) {
+        mre = ex;
+    }
+
+    if( mre.isset())
+        throw mre;
+}
 
 
 // TEST METHODS ------------------------------------------------------------

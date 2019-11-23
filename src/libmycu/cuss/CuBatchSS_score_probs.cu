@@ -3,7 +3,8 @@
  *   Institute of Biotechnology, Vilnius University                        *
  ***************************************************************************/
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include "liblib/mybase.h"
 #include "libmycu/cucom/cucommon.h"
 #include "libmycu/cupro/PM2DVectorFields.h"

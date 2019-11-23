@@ -17,17 +17,20 @@ static const char*  verdate = "";
 static const char*  makeinst = "\n\
 <>\n\
 \n\
-Make profile database.\n\
+Make profile database from input files in the given directory or listed profiles or\n\
+COMER database files (with the .prd extension).\n\
 (C)2013-2019 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
 \n\
 \n\
 Usage:\n\
-<> -o <output> [<other_options>] ( -d <directory> | <profile1> <profile2> ... )\n\
+<> -o <output> [<other_options>] ( -d <directory> | <file1> <file2> ... )\n\
 \n\
-Description (default values in parenthesis):\n\
+Make options:\n\
 \n\
--o <output>     [Filename]  Name of output database.\n\
--d <directory>  [Dirname]   Directory of profiles to read.\n\
+-o <output_name>            Name of output database.\n\
+-d <directory>              Directory of files to read.\n\
+-n <number_of_open_files>   Maximum number of open input files.\n\
+                        Default=510\n\
 \n\
 SEG options:\n\
 -U                          Invoke low-complexity filtering of profiles.\n\
@@ -43,6 +46,7 @@ SEG options:\n\
 Examples:\n\
 <> -o my_db -d ./my_profiles\n\
 <> -o my_db d_70_1_2.pro b_119_1_1.pro c_17_1_1.pro c_69_1_5.pro\n\
+<> -o my_db mydb_part1.prd mydb_part2.prd mydb_part3.prd\n\
 <> -o my_db *.pro\n\
 \n\
 ";

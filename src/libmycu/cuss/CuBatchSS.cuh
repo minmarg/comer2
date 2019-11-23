@@ -6,7 +6,8 @@
 #ifndef __CuBatchSS_h__
 #define __CuBatchSS_h__
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 

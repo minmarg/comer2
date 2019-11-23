@@ -9,7 +9,8 @@
 #include "liblib/mybase.h"
 
 #include <stdio.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include <memory>
 #include <utility>
@@ -72,21 +73,54 @@ public:
             std::lock_guard<std::mutex> lck(mx_dataccess_);
             req_msg_ = msg;
         }
-        cv_msg_.notify_one();
+        cv_msg_.notify_all();
+    }
+    int Wait(int rsp) {
+        //wait until a response
+        std::unique_lock<std::mutex> lck_msg(mx_dataccess_);
+        cv_msg_.wait(lck_msg,
+            [this,rsp]{return (rsp_msg_ == rsp || rsp_msg_ == WRITERTHREAD_MSG_ERROR);}
+        );
+        //lock is back; unset the response
+        int rspmsg = rsp_msg_;
+        if( rsp_msg_!= WRITERTHREAD_MSG_ERROR )
+            rsp_msg_ = WRITERTHREAD_MSG_UNSET;
+        return rspmsg;
+    }
+    int WaitDone() {
+        for( size_t i = 0; i < queryparts_.size(); )
+        {
+            //wait until all queries have been processed
+            std::unique_lock<std::mutex> lck_msg(mx_dataccess_);
+            cv_msg_.wait(lck_msg,
+                [this,i]{return 
+                    queryparts_[i] <= 0 ||
+                    rsp_msg_ == WRITERTHREAD_MSG_ERROR;}
+            );
+            if( rsp_msg_ == WRITERTHREAD_MSG_ERROR )
+                return rsp_msg_;
+            if( req_msg_ != WRITERTHREAD_MSG_UNSET )
+                continue;
+            i++;
+        }
+        return rsp_msg_;
     }
     void IncreaseQueryNParts( int qrysernr ) {
         std::lock_guard<std::mutex> lck(mx_dataccess_);
-        queryparts_[qrysernr]++;
+            queryparts_[qrysernr]++;
     }
     void DereaseNPartsAndTrigger( int qrysernr ) {
         std::unique_lock<std::mutex> lck(mx_dataccess_);
+        cv_msg_.wait(lck,
+            [this]{return req_msg_ == WRITERTHREAD_MSG_UNSET;}
+        );
         if( --queryparts_[qrysernr] <= 0 ) {
             //this is the last part for the given query:
             //trigger write to a file
             qrysernr_ = qrysernr;
             req_msg_ = wrtthreadmsgWrite;
             lck.unlock();
-            cv_msg_.notify_one();
+            cv_msg_.notify_all();
         }
     }
     int GetResponse() const {
@@ -117,6 +151,11 @@ public:
         std::unique_ptr<std::vector<char*>> annotptrs )
     {
         std::unique_lock<std::mutex> lck(mx_dataccess_);
+        //{{NOTE: [inserted]
+        cv_msg_.wait(lck,
+            [this]{return req_msg_ == WRITERTHREAD_MSG_UNSET;}
+        );
+        //}}
         if((int)queryparts_.size() <= qrysernr || qrysernr < 0 )
             throw MYRUNTIME_ERROR(
             "AlnWriter::PushPartOfResults: Invalid query serial number.");
@@ -133,9 +172,18 @@ public:
         vec_logevalues_[qrysernr].push_back(std::move(logevalues));
         vec_alnptrs_[qrysernr].push_back(std::move(alnptrs));
         vec_annotptrs_[qrysernr].push_back(std::move(annotptrs));
-        //the following statement must be the last
-        lck.unlock();
-        DereaseNPartsAndTrigger(qrysernr);
+        //{{NOTE: [commented out] the following statement must be the last
+        //lck.unlock();
+        //DereaseNPartsAndTrigger(qrysernr);
+        //}}
+        if( --queryparts_[qrysernr] <= 0 ) {
+            //this is the last part for the given query:
+            //trigger write to a file
+            qrysernr_ = qrysernr;
+            req_msg_ = wrtthreadmsgWrite;
+            lck.unlock();
+            cv_msg_.notify_all();
+        }
     }
 
 
@@ -188,7 +236,7 @@ protected:
         const float sspace,
         const int deltalen );
 
-    int GetTotoalNumberOfRecords() const
+    int GetTotalNumberOfRecords() const
     {
         if((int)queryparts_.size() <= qrysernr_ || qrysernr_ < 0 )
             throw MYRUNTIME_ERROR(

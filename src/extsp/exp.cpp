@@ -18,7 +18,8 @@
 /* Author:  G. Jungman */
 // *** the code adopted from GSL ***
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include "psl.h"
 #include "pslerror.h"
 #include "gamma.h"

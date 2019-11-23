@@ -137,6 +137,7 @@ __global__ void FinalizeMAPDP_MAP(
     }
 
     //{{use registers efficiently
+    __syncwarp();
     dbprodstCache = __shfl_sync(0xffffffff, dbprodstCache, 0);
     dbprolenCache = __shfl_sync(0xffffffff, dbprolenCache, 0);
     //}}
@@ -355,7 +356,7 @@ __global__ void FinalizeMAPDP_MAP(
             *(int*)(dp2alndatbuffers + nTDP2OutputAlnData*blockIdx.x+dp2oadEpA) = alnlen;
     }
 
-#ifdef CUMAPDP_MAP_FINAL_ALNS_AT_BEG
+#ifdef CUDPMAPDP_FINAL_ALNS_AT_BEG
     //rewrite the saved alignment so that it starts at the beginning of the db 
     // profile section;
     //alnlen+1 to include the termination character;
@@ -386,12 +387,10 @@ __global__ void FinalizeMAPDP_MAP(
                     outalns[qpos+threadIdx.x] = outAlnCache[i][threadIdx.x];
             }
         }
-        //no need to sync: next reading is beyong the indices used in this iteration
+        //no need to sync: next reading is beyond the indices used in this iteration
     }
 #endif
 
-
-__syncwarp();
 
 
 #ifdef CUMAPDP_MAP_FINAL_TESTPRINT
@@ -416,7 +415,7 @@ __syncwarp();
             );
             int i;
             qpos = dbpos2off + (blockIdx.x+1) * nqyposs - alnlen;
-#   ifdef CUMAPDP_MAP_FINAL_ALNS_AT_BEG
+#   ifdef CUDPMAPDP_FINAL_ALNS_AT_BEG
             qpos = dbpos2 + blockIdx.x * nqyposs;
 #   endif
             for( i = 0; i < nTDP2OutputAlignment; i++, qpos += dbalnlen2 )

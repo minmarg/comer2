@@ -13,7 +13,7 @@
 // for the case when FPTYPE==INTYPE
 // #define FPTYPEisINTYPE
 // #define LNTYPEisINTYPE
-#define CHTYPEisINTYPE
+// #define CHTYPEisINTYPE
 
 //NOTE: for alignment and proper data type conversion in a device by CUDA
 // make all types of the same size
@@ -27,7 +27,11 @@
 #define INTYPE      int //short
 #define SZINTYPE    (sizeof(INTYPE))
 
-#define CHTYPE      int //char
+#ifdef CHTYPEisINTYPE
+#   define CHTYPE   int
+#else
+#   define CHTYPE   char
+#endif
 #define SZCHTYPE    (sizeof(CHTYPE))
 
 //constants

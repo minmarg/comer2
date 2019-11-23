@@ -4,6 +4,7 @@ cmake_minimum_required (VERSION 3.8)
 project (COMER2 LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CUDA_STANDARD 11)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -25,6 +26,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   set_property(DIRECTORY APPEND PROPERTY COMPILE_OPTIONS $<$<CONFIG:Debug>:-O2>)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -Wall -Xcompiler -Wextra -Xptxas -v")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+  ##set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
   ##add_compile_options(-Wall -Wextra)
 endif()
 

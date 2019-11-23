@@ -35,6 +35,7 @@ public:
     char** GetPMData() { return h_pmdata_; }
     void GetPMData( char** pmdata );
     static void PMDataNextPro( char** pmdata );
+    static void PMDataSkipNPros( char** pmdata, size_t npros );
     bool PMDataReachedEnd( char** pmdata );
     static size_t GetPMDataLen1At( char** pmdata );
     static float GetPMDataENO1At( char** pmdata );
@@ -51,6 +52,8 @@ public:
     void ReallocNewSizeHostData( const size_t newdatasize );
     void ReallocHostData();//for making occupation == allocation
 
+    static constexpr size_t GetLengthFieldSize() { return SZINTYPE; }
+    static size_t GetLengthValue(char* lenbuff) { return (size_t)*(INTYPE*)lenbuff; }
     static constexpr size_t GetNoFields() { return pmv2DTotFlds; }
     static constexpr size_t GetNoHeaderFields() { return pps2DDist+1; }
     size_t GetNoProsWritten() const {//# profiles written in the buffers
@@ -61,7 +64,8 @@ public:
     size_t GetTotalFilledSize() const;
 
     //data size for complete profile model data of one profile
-    static void GetPMDataSize1( size_t prolen, size_t* szpmdata1 );// const;
+    static void GetPMDataSize1( size_t prolen, size_t* szpmdata1 );
+    static size_t GetPMDataSize1( size_t prolen );
     //upper bound of size for complete profile model data given number of positions
     static void GetPMDataSizeUB( size_t totprolen, size_t* szpmdata1 );
     static size_t GetPMDataSizeUBTotal( size_t totprolen );//size in total
@@ -427,6 +431,63 @@ void PMBatchProData::PMDataNextPro( char** pmdata )
 }
 
 // -------------------------------------------------------------------------
+// PMDataNextPro: move pointers to the buffers containing profile 
+// data to the position of the next profile
+//
+inline
+void PMBatchProData::PMDataSkipNPros( char** pmdata, size_t npros )
+{
+    MYMSGBEGl(6)
+        char strbuf[BUF_MAX];
+        sprintf(strbuf,"PMBatchProData::PMDataSkipNPros: %zu",npros);
+        MYMSG(strbuf,6);
+    MYMSGENDl
+
+#ifdef __DEBUG__
+    if( !pmdata )
+        throw MYRUNTIME_ERROR("PMBatchProData::PMDataSkipNPros: Null argument.");
+#endif
+
+    if( npros < 1 )
+        return;
+
+    int i;
+    size_t totlen = 0, prolen;
+
+    for( i = 0; i < (int)npros; i++ ) {
+        prolen = (size_t)*((INTYPE*)pmdata[pps2DLen]+i);
+        totlen += prolen;
+    }
+
+    for( i = 0; i < pmv2DNoElems; i++ )
+        pmdata[pps2DBkgPrbs+i] += SZFPTYPE * npros;
+    pmdata[pps2DENO] += SZFPTYPE * npros;
+    pmdata[pps2DLen] += SZINTYPE * npros;
+    pmdata[pps2DDist] += SZLNTYPE * npros;
+
+    for( i = 0; i < ptr2DNoElems; i++ ) {
+        pmdata[ptr2DTrnPrbs+i] += SZFPTYPE * (totlen+npros);
+//         pmdata[ptr2DTrnPrbsExp+i] += SZFPTYPE * (totlen+npros);
+    }
+
+    for( i = 0; i < pmv2DNoElems; i++ )
+        pmdata[pmv2DTrgFrqs+i] += SZFPTYPE * totlen;
+    for( i = 0; i < pmv2DNoCVEls; i++ )
+        pmdata[pmv2DCVentrs+i] += SZFPTYPE * totlen;
+    pmdata[pmv2DCVprior] += SZFPTYPE * totlen;
+    pmdata[pmv2DCVnorm2] += SZFPTYPE * totlen;
+    for( i = 0; i < pmv2DNoSSSps; i++ )
+        pmdata[pmv2DSSsprbs+i] += SZFPTYPE * totlen;
+    pmdata[pmv2DHDP1prb] += SZFPTYPE * totlen;
+    pmdata[pmv2DHDP1ind] += SZINTYPE * totlen;
+    pmdata[pmv2DAddrPro] += SZINTYPE * totlen;
+    pmdata[pmv2DAddrCV] += SZLNTYPE * totlen;
+    pmdata[pmv2DAddrSS] += SZLNTYPE * totlen;
+    pmdata[pmv2Daa] += SZCHTYPE * totlen;
+    pmdata[pmv2DSSstate] += SZCHTYPE * totlen;
+}
+
+// -------------------------------------------------------------------------
 // GetNoProsAt: get the number of profiles from the beginning of the 
 // buffers
 inline
@@ -635,6 +696,33 @@ void PMBatchProData::GetPMDataSize1( size_t prolen, size_t* szpmdata1 )// const
     szpmdata1[pmv2DAddrSS] = SZLNTYPE * prolen;
     szpmdata1[pmv2Daa] = SZCHTYPE * prolen;
     szpmdata1[pmv2DSSstate] = SZCHTYPE * prolen;
+}
+
+inline
+size_t PMBatchProData::GetPMDataSize1( size_t prolen )
+{
+    MYMSG("PMBatchProData::GetPMDataSize1",6);
+    size_t size = 0;
+    size += SZFPTYPE * pmv2DNoElems;//[pps2DBkgPrbs]
+    size += SZFPTYPE;//[pps2DENO]
+    size += SZINTYPE;//[pps2DLen]
+    size += SZLNTYPE;//[pps2DDist]
+
+    size += SZFPTYPE * ptr2DNoElems * (prolen+1);//[ptr2DTrnPrbs]
+
+    size += SZFPTYPE * pmv2DNoElems * prolen;//[pmv2DTrgFrqs]
+    size += SZFPTYPE * pmv2DNoCVEls * prolen;//[pmv2DCVentrs]
+    size += SZFPTYPE * prolen;//[pmv2DCVprior]
+    size += SZFPTYPE * prolen;//[pmv2DCVnorm2]
+    size += SZFPTYPE * pmv2DNoSSSps * prolen;//[pmv2DSSsprbs]
+    size += SZFPTYPE * prolen;//[pmv2DHDP1prb]
+    size += SZINTYPE * prolen;//[pmv2DHDP1ind]
+    size += SZINTYPE * prolen;//[pmv2DAddrPro]
+    size += SZLNTYPE * prolen;//[pmv2DAddrCV]
+    size += SZLNTYPE * prolen;//[pmv2DAddrSS]
+    size += SZCHTYPE * prolen;//[pmv2Daa]
+    size += SZCHTYPE * prolen;//[pmv2DSSstate]
+    return size;
 }
 
 // -------------------------------------------------------------------------

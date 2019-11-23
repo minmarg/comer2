@@ -9,7 +9,8 @@
 #include "liblib/mybase.h"
 
 #include <stdio.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include <memory>
 #include <functional>
@@ -20,6 +21,8 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+
+#include "tsafety/TSCounterVar.h"
 
 #include "libpro/srcpro/Configuration.h"
 #include "libpro/srcpro/PMTransModel.h"
@@ -57,8 +60,7 @@ public:
         Configuration*,
         const mystring* queryfnames,
         const mystring* querydescs,
-        const mystring* bdb1fnames,
-        const mystring* bdb1descs
+        const char** bdb1descs
     );
     CuBatchProcessingFinalizer();
     ~CuBatchProcessingFinalizer();
@@ -68,8 +70,9 @@ public:
     //{{NOTE: messaging functions accessed from outside!
     void Notify(int msg) {
         {//mutex must be unlocked before notifying
-            std::lock_guard<std::mutex> lck(mx_dataccess_);
-            req_msg_ = msg;
+            std::unique_lock<std::mutex> lck(mx_dataccess_);
+            if( req_msg_ != CUBPTHREAD_MSG_ERROR)
+                req_msg_ = msg;
         }
         cv_msg_.notify_one();
     }
@@ -91,10 +94,10 @@ public:
         unsigned int deltalen,
         float sspace,
         float logevthld,
-        std::unique_ptr<PMBatchProData> bdbC,
-        char** querypmbeg, char** querypmend, 
+        char** querypmbeg,// char** querypmend, 
         char** bdb1pmbeg, char** bdb1pmend,
-        char** bdbCpmbeg, char** bdbCpmend,
+        const char** bdbCdesc, char** bdbCpmbeg, char** bdbCpmend,
+        TSCounterVar* cnt,
         size_t ndb1pros,
         size_t ndbCpros,
         size_t querprosOmtd,
@@ -109,24 +112,41 @@ public:
         size_t sz_alndata, size_t sz_alns,
         int dbalnlen2 )
     {
-        std::lock_guard<std::mutex> lck(mx_dataccess_);
+        std::unique_lock<std::mutex> lck(mx_dataccess_);
+        cv_msg_.wait(lck,
+            [this]{return 
+                    req_msg_ == CUBPTHREAD_MSG_UNSET ||
+                    req_msg_ == CUBPTHREAD_MSG_ERROR ||
+                    rsp_msg_ == CUBPTHREAD_MSG_ERROR;}
+        );
+        if( req_msg_ == CUBPTHREAD_MSG_ERROR || rsp_msg_ == CUBPTHREAD_MSG_ERROR)
+            return;
         cubp_set_qrysernr_ = qrysernr;
         cubp_set_nqyposs_ = (int)nqyposs;
         cubp_set_qyeno_ = qyeno;
         cubp_set_deltalen_ = deltalen;
         cubp_set_sspace_ = sspace;
         cubp_set_logevthld_ = logevthld;
-        cubp_set_bdbC_ = std::move(bdbC);
         memcpy( cubp_set_querypmbeg_, querypmbeg, pmv2DTotFlds * sizeof(void*));
-        memcpy( cubp_set_querypmend_, querypmend, pmv2DTotFlds * sizeof(void*));
+        //memcpy( cubp_set_querypmend_, querypmend, pmv2DTotFlds * sizeof(void*));
         if( bdb1pmbeg && bdb1pmend ) {
             memcpy( cubp_set_bdb1pmbeg_, bdb1pmbeg, pmv2DTotFlds * sizeof(void*));
             memcpy( cubp_set_bdb1pmend_, bdb1pmend, pmv2DTotFlds * sizeof(void*));
         }
+        else {
+            memset( cubp_set_bdb1pmbeg_, 0, pmv2DTotFlds * sizeof(void*));
+            memset( cubp_set_bdb1pmend_, 0, pmv2DTotFlds * sizeof(void*));
+        }
+        cubp_set_bdbCdesc_ = bdbCdesc;
         if( bdbCpmbeg && bdbCpmend ) {
             memcpy( cubp_set_bdbCpmbeg_, bdbCpmbeg, pmv2DTotFlds * sizeof(void*));
             memcpy( cubp_set_bdbCpmend_, bdbCpmend, pmv2DTotFlds * sizeof(void*));
         }
+        else {
+            memset( cubp_set_bdbCpmbeg_, 0, pmv2DTotFlds * sizeof(void*));
+            memset( cubp_set_bdbCpmend_, 0, pmv2DTotFlds * sizeof(void*));
+        }
+        cubp_set_cnt_ = cnt;
         cubp_set_ndb1pros_ = ndb1pros;
         cubp_set_ndbCpros_ = ndbCpros;
         cubp_set_querprosOmtd_ = querprosOmtd;
@@ -174,9 +194,7 @@ protected:
 
     void MakeAnnotation( 
         char*& outptr,
-        const mystring* name,
-        const mystring* desc,
-        const bool printname,
+        const char* desc,
         const int maxoutlen,
         const int width,
         const float score,
@@ -235,8 +253,7 @@ protected:
     template<typename T>
     T GetDbProfileFieldPos(unsigned int orgprondx, unsigned int field, unsigned int pos) const;
 
-    void GetDbProfileNameDesc(
-        const mystring*& name, const mystring*& desc, unsigned int orgprondx) const;
+    void GetDbProfileDesc(const char*& desc, unsigned int orgprondx) const;
 
 
     void ReserveVectors( int capacity ) {
@@ -272,8 +289,7 @@ private:
     //{{cached host data
     const mystring* cached_queryfnames_;
     const mystring* cached_querydescs_;
-    const mystring* cached_bdb1fnames_;
-    const mystring* cached_bdb1descs_;
+    const char** cached_bdb1descs_;
     //}}
     //{{data arguments: 
     // cubp-set data/addresses:
@@ -283,13 +299,14 @@ private:
     unsigned int cubp_set_deltalen_;//length adjustment
     float cubp_set_sspace_;//search space size
     float cubp_set_logevthld_;//log e-value threshold
-    std::unique_ptr<PMBatchProData> cubp_set_bdbC_;
     char* cubp_set_querypmbeg_[pmv2DTotFlds];
     char* cubp_set_querypmend_[pmv2DTotFlds];
     char* cubp_set_bdb1pmbeg_[pmv2DTotFlds];
     char* cubp_set_bdb1pmend_[pmv2DTotFlds];
+    const char** cubp_set_bdbCdesc_;
     char* cubp_set_bdbCpmbeg_[pmv2DTotFlds];
     char* cubp_set_bdbCpmend_[pmv2DTotFlds];
+    TSCounterVar* cubp_set_cnt_;
     size_t cubp_set_ndb1pros_;
     size_t cubp_set_ndbCpros_;
     size_t cubp_set_querprosOmtd_;
@@ -340,8 +357,8 @@ T CuBatchProcessingFinalizer::GetDbProfileField(
     } else {
         //NOTE: same as above!
         //orgprondx += /*cubp_set_ndbCprosOmtd_ */- cubp_set_ndb1pros_;
-		orgprondx -= (unsigned int)cubp_set_ndb1pros_;
-		return GetProfileField<T>(cubp_set_bdbCpmbeg_, orgprondx, field);
+        orgprondx -= (unsigned int)cubp_set_ndb1pros_;
+        return GetProfileField<T>(cubp_set_bdbCpmbeg_, orgprondx, field);
     }
 }
 // GetDbProfileFieldPos: get a field of the given Db profile at a given position;
@@ -358,21 +375,18 @@ T CuBatchProcessingFinalizer::GetDbProfileFieldPos(
     }
 }
 
-// GetDbProfileNameDesc: get the db profile name and description;
+// GetDbProfileNameDesc: get the db profile description;
 // orgprondx, index of a profile over all pm data structures;
 inline
-void CuBatchProcessingFinalizer::GetDbProfileNameDesc(
-    const mystring*& name, const mystring*& desc,
-    unsigned int orgprondx) const
+void CuBatchProcessingFinalizer::GetDbProfileDesc(
+    const char*& desc, unsigned int orgprondx) const
 {
     if( orgprondx < cubp_set_ndb1pros_) {
         orgprondx += (unsigned int)cubp_set_ndb1prosOmtd_;
-        name = cached_bdb1fnames_ + orgprondx;
-        desc = cached_bdb1descs_ + orgprondx;
+        desc = cached_bdb1descs_[orgprondx];
     } else {
         orgprondx += (unsigned int)(cubp_set_ndbCprosOmtd_ - cubp_set_ndb1pros_);
-        name = cubp_set_bdbC_->GetFnames() + orgprondx;
-        desc = cubp_set_bdbC_->GetDescs() + orgprondx;
+        desc = cubp_set_bdbCdesc_[orgprondx];
     }
 }
 

@@ -15,8 +15,9 @@
 
 // Version history:
 // 2.01   Initial project 2
+// 2.02   Re-engineered load distribution on GPUS leading to significantly improved performance
 
-static const char*  version = "2.01";
+static const char*  version = "2.02";
 static const char*  verdate = "";
 
 static const char*  instructs = "\n\
@@ -30,7 +31,8 @@ Usage:\n\
 <> -i <query> -d <database> [-o <output>] [-p <options>] [<other_options>]\n\
 \n\
 Alignment search options:\n\
--i <query_profile>          <> profile made by makepro.\n\
+-i <query_profiles>         <> (stacked) profile(s) made by makepro or profile\n\
+                            database (use extension .prd) made by makedb.\n\
 -d <database_name>          Database made by makedb from this package.\n\
 -o <output_directory>       Directory of output files for each query.\n\
 -p <options_file>           Input file of options;\n\
@@ -50,14 +52,13 @@ Parallel run options:\n\
                             All memory is used if a GPU has less than the specified\n\
                             amount of memory.\n\
                         Default=[all memory of GPU(s)]\n\
---dev-cachep=<percentage>   GPU memory proportion dedicated to caching the profile\n\
-                            database. This does not include the size of all queries.\n\
-                            The size will be calculated with respect to the first GPU\n\
-                            (see options --dev-N and --dev-list) and it will be the\n\
-                            same for all GPUs.\n\
-                            NOTE: Large percentages (>40%) may be desirable for GPUs\n\
-                            with plenty of memory (>6GB).\n\
-                        Default=20\n\
+--dev-ngrids=<count>        Number of grids [1,20] to launch on each GPU.\n\
+ *EXPERIMENTAL option*      A grid represents a logically independent computation unit\n\
+                            (like a bunch of CPU threads). The GPU memory is divided\n\
+                            over all grids, and the advantage of running multiple grids\n\
+                            is determined by the available number of GPU cores. Note\n\
+                            that a communicating CPU thread is created for each grid.\n\
+                        Default=1\n\
 --dev-expected-length=<length> Expected length of database proteins (profiles). Its\n\
                             values are restricted to the interval [20,200].\n\
                             NOTE: Increasing it reduces GPU memory requirements, but\n\
@@ -67,12 +68,19 @@ Parallel run options:\n\
                             hits that passed significance threshold.\n\
                             (Expected proportion of significant hits.)\n\
                         Default=10\n\
---io-nofilemap              Do not map files into memory.\n\
-                            Mapping is advantageous when working with large files.\n\
-                            This options allows to turn it off.\n\
-\n\
-CPU options:\n\
---cpu-freemem               Free unused memory as soon as the required size is known.\n\
+--io-nbuffers=<count>       Number of buffers [1,10] used to cache data read from file.\n\
+                            Values greater than 1 lead to increased performance at the\n\
+                            expense of increased memory consumption.\n\
+                        Default=4\n\
+--io-filemap                Map files into memory.\n\
+                            In general, the performance with or without file mapping is\n\
+                            similar. In some systems, however, mapping can lead to\n\
+                            increased computation time.\n\
+--io-unpinned               Do not use pinned (page-locked) CPU memory.\n\
+                            Pinned CPU memory provides better performance, but reduces\n\
+                            system resources. If RAM memory is scarce (<2GB), using\n\
+                            pinned memory may reduce overall system performance.\n\
+                            By default, pinned memory is used.\n\
 \n\
 Other options:\n\
 --dev-list                  List all GPUs compatible and available on the system\n\

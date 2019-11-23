@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include <fstream>
 
@@ -23,6 +24,7 @@
 #include "SUBSTABLE.h"
 #include "TCTXVECT.h"
 #include "PMTransModel.h"
+#include "libmycu/cupro/PM2DVectorFields.h"
 #include "PMProfileModelBase.h"
 #include "PMProfileModel.h"
 
@@ -32,6 +34,7 @@ namespace pmodel {
 
 // COMER profile format version
 const char* PMProfileModel::dataversion = "2.0";
+const char* PMProfileModel::bindataversion = "2.2";
 
 ////////////////////////////////////////////////////////////////////////////
 // CLASS PMProfileModel
@@ -1415,114 +1418,6 @@ void PMProfileModel::FormatBuffer( char*& format, const char* desc,
     }
 }
 
-// // // -------------------------------------------------------------------------
-// // // Serialize: write the class data to file
-// // //
-// // void PMProfileModel::Serialize( Serializer& serializer ) const
-// // {
-// //     size_t  sz_name = 0;
-// //     size_t  sz_description = 0;
-// //     int n;
-// //     //
-// //     DistributionMatrix::Serialize( serializer );
-// //     //
-// //     if( columns > 0 ) {
-// //         serializer.Write(( char* )freqweights, sizeof( double ), columns );
-// //         serializer.Write(( char* )information, sizeof( double ), columns );
-// //         for( n = 0; n < columns; n++ )
-// //             serializer.Write(( char* )expMIDs_[n], sizeof( double ), PS_NSTATES );
-// //     }
-// //     //
-// //     if( GetName())
-// //         sz_name = strlen( GetName()) + 1; // to include null symbol
-// // 
-// //     serializer.Write(( char* )&sz_name, sizeof( sz_name ), 1 );
-// // 
-// //     if( GetName())
-// //         serializer.Write(( char* )GetName(), 1, sz_name );
-// //     //
-// //     if( GetDescription())
-// //         sz_description = strlen( GetDescription()) + 1; // to include null symbol
-// // 
-// //     serializer.Write(( char* )&sz_description, sizeof( sz_description ), 1 );
-// // 
-// //     if( GetDescription())
-// //         serializer.Write(( char* )GetDescription(), 1, sz_description );
-// // 
-// // 
-// //     serializer.Write(( char* )&nosequences,         sizeof( nosequences ), 1 );
-// //     serializer.Write(( char* )&effnosequences,      sizeof( effnosequences ), 1 );
-// // 
-// //     serializer.Write(( char* )&referenceLambda,     sizeof( referenceLambda ), 1 );
-// //     serializer.Write(( char* )&referenceK,          sizeof( referenceK ), 1 );
-// //     serializer.Write(( char* )&lambda,              sizeof( lambda ), 1 );
-// //     serializer.Write(( char* )&entropy,             sizeof( entropy ), 1 );
-// //     serializer.Write(( char* )&parameterK,          sizeof( parameterK ), 1 );
-// //     serializer.Write(( char* )&expscore,            sizeof( expscore ), 1 );
-// // 
-// // }
-
-// // // -------------------------------------------------------------------------
-// // // Deserialize: read data into the class members
-// // // -------------------------------------------------------------------------
-// // 
-// // void PMProfileModel::Deserialize( Serializer& serializer )
-// // {
-// //     size_t  sz_name;
-// //     size_t  sz_description;
-// //     int n;
-// //     //
-// //     //memory allocation is there!
-// //     DistributionMatrix::Deserialize( serializer );
-// //     //
-// //     if( columns > 0 ) {
-// //         serializer.Read(( char* )freqweights, sizeof( double ), columns );
-// //         serializer.Read(( char* )information, sizeof( double ), columns );
-// //         for( n = 0; n < columns; n++ )
-// //             serializer.Read(( char* )expMIDs_[n], sizeof( double ), PS_NSTATES );
-// //     }
-// //     //
-// //     serializer.Read(( char* )&sz_name, sizeof( sz_name ), 1 );
-// // 
-// //     if( sz_name ) {
-// //         char*   newname = ( char* )malloc( sz_name );
-// //         if( !newname )
-// //             throw myruntime_error( mystring( "PMProfileModel: Not enough memory." ));
-// // 
-// //         serializer.Read( newname, 1, sz_name );
-// //         newname[ sz_name - 1 ] = 0;  // to avoid crashes
-// // 
-// //         SetName( newname );
-// //         free( newname );
-// //     } else
-// //         SetName( NULL );
-// //     //
-// //     serializer.Read(( char* )&sz_description, sizeof( sz_description ), 1 );
-// // 
-// //     if( sz_description ) {
-// //         char*   newdesc = ( char* )malloc( sz_description );
-// //         if( !newdesc )
-// //             throw myruntime_error( mystring( "PMProfileModel: Not enough memory." ));
-// // 
-// //         serializer.Read( newdesc, 1, sz_description );
-// //         newdesc[ sz_description - 1 ] = 0;  // to avoid crashes
-// // 
-// //         SetDescription( newdesc );
-// //         free( newdesc );
-// //     } else
-// //         SetDescription( NULL );
-// // 
-// //     serializer.Read(( char* )&nosequences,          sizeof( nosequences ), 1 );
-// //     serializer.Read(( char* )&effnosequences,       sizeof( effnosequences ), 1 );
-// // 
-// //     serializer.Read(( char* )&referenceLambda,      sizeof( referenceLambda ), 1 );
-// //     serializer.Read(( char* )&referenceK,           sizeof( referenceK ), 1 );
-// //     serializer.Read(( char* )&lambda,               sizeof( lambda ), 1 );
-// //     serializer.Read(( char* )&entropy,              sizeof( entropy ), 1 );
-// //     serializer.Read(( char* )&parameterK,           sizeof( parameterK ), 1 );
-// //     serializer.Read(( char* )&expscore,             sizeof( expscore ), 1 );
-// // }
-
 
 
 
@@ -1552,6 +1447,513 @@ extern "C" {
 /*static */const char* patstrEND = "*";
 /*static */extern const size_t lenstrEND = strlen( patstrEND );
 /*static */const int   INTSCALE = 1000;
+}
+
+// =========================================================================
+// CalculateAndWriteAddressTable_v2_2: calculate and write address 
+// table to a binary file of profile database;
+// fp, output file stream;
+// szpreamble, size reserved for preamble in the beginning;
+// addrfields, file addresses of the beginnings of profile fields, to be 
+// calculated and written to file;
+// addrfname_end_addrs, address of end addresses of filenames to be 
+// calculated;
+// addrdesc_end_addrs, address of end addresses of descripptions to be 
+// calculated;
+// addrfname, address of profile filenames to be calculated;
+// addrdesc, address of profile descriptions to be calculated;
+// nprofiles, number of profiles to comprise a database;
+// totalposs, total number of positions over all profiles in a database;
+//
+void CalculateAndWriteAddressTable_v2_2(
+    std::ofstream& fp,
+    const size_t szpreamble,
+    size_t* addrfields,
+    size_t& addrdesc_end_addrs, size_t& addrdesc,
+    const size_t nprofiles, const size_t totalposs )
+{
+    if( addrfields == NULL )
+        throw MYRUNTIME_ERROR( "CalculateAndWriteAddressTable_v2_2: Null file addresses." );
+
+    if( MAXFILESIZE <= szpreamble )
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid reserved size.");
+
+    const int noress = NUMAA;//PMProfileModelBase::PVDIM;
+    const int vsize = NUMAA-1;//context vector length
+    size_t table[BUF_MAX];//NOTE:BUF_MAX assumed to be greater than v2_2_NSECTIONS!
+    size_t addr;
+    int r, t, tt, n = 0;
+
+    addr = szpreamble + PMProfileModel::v2_2_NSECTIONS * sizeof(table[0]);//start of the profile data
+
+    table[n++] = addrfields[pps2DLen] = addr;//lengths
+    addr += nprofiles * sizeof(int);//end of lengths
+    table[n++] = addrfields[pps2DENO] = addr;//ENOs
+    addr += nprofiles * sizeof(float);//end of ENOs
+    for( r = 0; r < noress; r++ ) {
+        table[n++] = addrfields[pps2DBkgPrbs+r] = addr;//bkg probabilities for each r
+        addr += nprofiles * sizeof(float);//end
+    }
+    for( t = 0, tt = -1; t < P_NSTATES; t++ ) {
+        if( t == P_ID || t == P_DI )
+            continue;
+        tt++;
+        table[n++] = addrfields[ptr2DTrnPrbs+tt] = addr;//trn probabilities for each tt
+        addr += (nprofiles + totalposs) * sizeof(float);//end
+    }
+    for( r = 0; r < noress; r++ ) {
+        table[n++] = addrfields[pmv2DTrgFrqs+r] = addr;//target probabilities for each r
+        addr += totalposs * sizeof(float);//end
+    }
+    for( t = 0; t < vsize; t++ ) {
+        table[n++] = addrfields[pmv2DCVentrs+t] = addr;//context vector entries (for each t)
+        addr += totalposs * sizeof(float);//end
+    }
+    table[n++] = addrfields[pmv2DCVprior] = addr;//context vector probabilities
+    addr += totalposs * sizeof(float);//end
+    table[n++] = addrfields[pmv2DCVnorm2] = addr;//squared norms of context vector
+    addr += totalposs * sizeof(float);//end
+    for( t = 0; t < SS_NSTATES; t++ ) {
+        table[n++] = addrfields[pmv2DSSsprbs+t] = addr;//secondary structure state probabilities for each t
+        addr += totalposs * sizeof(float);//end
+    }
+    table[n++] = addrfields[pmv2DHDP1prb] = addr;//HDP1 cluster membership probabilities
+    addr += totalposs * sizeof(float);//end
+    table[n++] = addrfields[pmv2DHDP1ind] = addr;//HDP1 cluster indices
+    addr += totalposs * sizeof(int);//end
+    table[n++] = addrfields[pmv2Daa] = addr;//amino acid sequences
+    addr += totalposs * sizeof(char);//end
+    table[n++] = addrfields[pmv2DSSstate] = addr;//secondary structure state sequences
+    addr += totalposs * sizeof(char);//end
+    //
+//     addrfname_end_addrs = addr;//end addresses of filenames are not included!
+//     addr += nprofiles * sizeof(size_t);//end
+    table[n++] = addrdesc_end_addrs = addr;//end addresses of profile descriptions
+    addr += nprofiles * sizeof(size_t);//end
+    //
+    table[n++] = addrdesc = addr;//profile descriptions; the end is indefinite!
+
+    //write the address table
+    if( n != PMProfileModel::v2_2_NSECTIONS )
+        throw MYRUNTIME_ERROR("CalculateAndWriteAddressTable_v2_2: Invalid number of address table entries.");
+
+    fp.seekp(std::streamoff(szpreamble));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("CalculateAndWriteAddressTable_v2_2: Failed to set file position.");
+    fp.write(reinterpret_cast<const char*>(table), n * sizeof(table[0]));
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("CalculateAndWriteAddressTable_v2_2: Write to file failed.");
+}
+
+// =========================================================================
+// BinaryWriteProfile_v2_2: sparse write of profile data to binary file;
+// fp, output file stream;
+// addrfields, file addresses of profile fields, being updated on each write call;
+// addrfname_end_addrs, file address of end addresses of filenames;
+// addrdesc_end_addrs, file address of end addresses of descripptions;
+// addrfname, file address of profile filename, being updated;
+// addrdesc, file address of profile description, being updated;
+// pssm, profile model;
+// gaps, model of transition probabilities;
+//
+void BinaryWriteProfile_v2_2(
+    std::ofstream& fp,
+    size_t* addrfields,
+    size_t& addrdesc_end_addrs, size_t& addrdesc,
+    const PMProfileModel& pssm, const PMTransModel& gaps )
+{
+    if( pssm.GetSize() != gaps.GetSize())
+        throw MYRUNTIME_ERROR( "BinaryWriteProfile_v2_2: Inconsistent Profile data." );
+
+    if( pssm.GetSize() < 1 )
+        throw MYRUNTIME_ERROR( "BinaryWriteProfile_v2_2: Invalid Profile length." );
+
+    if( pssm.GetCtxVecSet() && pssm.GetCtxVecSize() != pmv2DNoCVEls )
+        throw MYRUNTIME_ERROR( "BinaryWriteProfile_v2_2: Invalid context vector length." );
+
+    if( addrfields == NULL )
+        throw MYRUNTIME_ERROR( "BinaryWriteProfile_v2_2: Null file addresses." );
+
+    const int noress = NUMAA;//PMProfileModelBase::PVDIM;
+
+    mystring        sequence;
+    extspsl::Pslvector spvals;
+    extspsl::Ivector intvals;
+    extspsl::Pslvector uninfctxvec(pmv2DNoCVEls);//uninformative context vector
+    const float*    ppprobs;//posterior predictive probabilities
+    const int*      pppndxs;//indices of posteriors
+    int             noppps;//number of p.p.probability values
+    //float           norm2;//context vector's squared norm
+    float           lpprb;//log of context vector's prior probability
+    int             vsize = pmv2DNoCVEls;//pssm.GetCtxVecSize();//size of vector
+    const char ch0 = 0;
+    char strbuf[BUF_MAX];
+    size_t bytes;
+    char res;
+    int m, r, t, tt;
+
+    spvals.Allocate(pssm.GetSize()+1);
+    intvals.Allocate(pssm.GetSize());
+
+    //init each entry to ensure CVS2S score==0 when CVS information is not to be in use
+    uninfctxvec.AssignTo(0.17302947f);
+
+    //length:
+    if( MAXFILESIZE <= addrfields[pps2DLen])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid profile length address.");
+    fp.seekp(std::streamoff(addrfields[pps2DLen]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    bytes = sizeof(pssm.length_);
+    fp.write(reinterpret_cast<const char*>(&pssm.length_),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pps2DLen] += bytes;
+
+    //ENO:
+    if( MAXFILESIZE <= addrfields[pps2DENO])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid profile ENO address.");
+    fp.seekp(std::streamoff(addrfields[pps2DENO]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    bytes = sizeof(pssm.effnosequences_);
+    fp.write(reinterpret_cast<const char*>(&pssm.effnosequences_),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pps2DENO] += bytes;
+
+
+    //background probabilities:
+    for( r = 0; r < noress; r++ ) {
+        if( MAXFILESIZE <= addrfields[pps2DBkgPrbs+r])
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of background probabilities.");
+        fp.seekp(std::streamoff(addrfields[pps2DBkgPrbs+r]));
+        if(fp.fail())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+        bytes = sizeof(pssm.backprobs_[0]);
+        fp.write(reinterpret_cast<const char*>(pssm.backprobs_+r),bytes);
+        if(fp.bad())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+        addrfields[pps2DBkgPrbs+r] += bytes;
+    }
+
+    //NOTE: posterior probabilities are not written
+    //for( r = 0; r < noress; r++ )
+    //    fp.write(reinterpret_cast<const char*>(pssm.postprobs_+r),sizeof(pssm.postprobs_[0]));
+
+
+    //transition probabilities:
+    for( t = 0, tt = -1; t < P_NSTATES; t++ ) {
+        if( t == P_ID || t == P_DI )
+            continue;
+        tt++;
+        spvals.Clear();
+        bytes = 0;
+        if( MAXFILESIZE <= addrfields[ptr2DTrnPrbs+tt])
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of transition probabilities.");
+        fp.seekp(std::streamoff(addrfields[ptr2DTrnPrbs+tt]));
+        if(fp.fail())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+        //beginning transition probabilities
+        lpprb = gaps.GetOrgTrProbsAt(t,-1);
+        //NOTE: calculate and write logarithms of transitions
+        lpprb = lpprb? (P_MD<t? logf(lpprb)*MAIN_TRNPRB_LOGFCT: logf(lpprb)): -32768.0f;
+        spvals.Push(lpprb);
+        bytes += sizeof(lpprb);
+        //positional transition probabilities
+        for( m = 0; m < pssm.GetSize(); m++ ) {
+            res = pssm.GetResidueAt(m);
+            if( res == GAP )
+                continue;//omit unused positions and gaps
+            lpprb = gaps.GetOrgTrProbsAt(t,m);
+            //NOTE: calculate and write logarithms of transitions
+            lpprb = lpprb? (P_MD<t? logf(lpprb)*MAIN_TRNPRB_LOGFCT: logf(lpprb)): -32768.0f;
+            spvals.Push(lpprb);
+            bytes += sizeof(lpprb);
+        }
+        fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+        if(fp.bad())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+        addrfields[ptr2DTrnPrbs+tt] += bytes;
+    }
+
+
+    //target probabilities:
+    for( r = 0; r < noress; r++ ) {
+        spvals.Clear();
+        bytes = 0;
+        if( MAXFILESIZE <= addrfields[pmv2DTrgFrqs+r])
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of target probabilities.");
+        fp.seekp(std::streamoff(addrfields[pmv2DTrgFrqs+r]));
+        if(fp.fail())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+        for( m = 0; m < pssm.GetSize(); m++ ) {
+            res = pssm.GetResidueAt(m);
+            if( res == GAP )
+                continue;//omit unused positions and gaps
+            lpprb = pssm.values_[m][r];
+            spvals.Push(lpprb);
+            bytes += sizeof(lpprb);
+        }
+        fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+        if(fp.bad())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+        addrfields[pmv2DTrgFrqs+r] += bytes;
+    }
+
+
+    //{{context vectors:
+    for( t = 0; t < vsize; t++ ) {
+        spvals.Clear();
+        bytes = 0;
+        if( MAXFILESIZE <= addrfields[pmv2DCVentrs+t])
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of context vectors.");
+        fp.seekp(std::streamoff(addrfields[pmv2DCVentrs+t]));
+        if(fp.fail())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+        for( m = 0; m < pssm.GetSize(); m++ ) {
+            res = pssm.GetResidueAt(m);
+            if( res == GAP )
+                continue;//omit unused positions and gaps
+            if( pssm.GetCtxVecSet())
+                lpprb = pssm.GetCtxVecAt(m)? 
+                    pssm.GetCtxVecAt(m)[t]: uninfctxvec.GetValueAt(t);//HUGE_VALF;
+            else
+                lpprb = uninfctxvec.GetValueAt(t);//HUGE_VALF;
+            spvals.Push(lpprb);
+            bytes += sizeof(lpprb);
+        }
+        fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+        if(fp.bad())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+        addrfields[pmv2DCVentrs+t] += bytes;
+    }
+
+    //probabilities of context vectors
+    spvals.Clear();
+    bytes = 0;
+    if( MAXFILESIZE <= addrfields[pmv2DCVprior])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of probabilities of context vectors.");
+    fp.seekp(std::streamoff(addrfields[pmv2DCVprior]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    for( m = 0; m < pssm.GetSize(); m++ ) {
+        res = pssm.GetResidueAt(m);
+        if( res == GAP )
+            continue;//omit unused positions and gaps
+        if( pssm.GetCtxVecSet())
+            lpprb = pssm.GetCtxVecLpprobAt(m);
+        else
+            lpprb = 0.0f;//HUGE_VALF;
+        spvals.Push(lpprb);
+        bytes += sizeof(lpprb);
+    }
+    fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pmv2DCVprior] += bytes;
+
+    //squared norms of context vectors
+    spvals.Clear();
+    bytes = 0;
+    if( MAXFILESIZE <= addrfields[pmv2DCVnorm2])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of norms of context vectors.");
+    fp.seekp(std::streamoff(addrfields[pmv2DCVnorm2]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    for( m = 0; m < pssm.GetSize(); m++ ) {
+        res = pssm.GetResidueAt(m);
+        if( res == GAP )
+            continue;//omit unused positions and gaps
+        if( pssm.GetCtxVecSet())
+            lpprb = pssm.GetCtxVecNorm2At(m);
+        else
+            lpprb = 0.0f;//HUGE_VALF;
+        spvals.Push(lpprb);
+        bytes += sizeof(lpprb);
+    }
+    fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pmv2DCVnorm2] += bytes;
+    //}}//CV
+
+
+    //{{secondary structure state probabilities:
+    for( t = 0; t < SS_NSTATES; t++ ) {
+        spvals.Clear();
+        bytes = 0;
+        if( MAXFILESIZE <= addrfields[pmv2DSSsprbs+t])
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of sec. strcture probabilities.");
+        fp.seekp(std::streamoff(addrfields[pmv2DSSsprbs+t]));
+        if(fp.fail())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+        for( m = 0; m < pssm.GetSize(); m++ ) {
+            res = pssm.GetResidueAt(m);
+            if( res == GAP )
+                continue;//omit unused positions and gaps
+            if( pssm.GetSSSSet())
+                lpprb = pssm.sssprob_[m]? pssm.sssprob_[m][t]: 0.0f;//HUGE_VALF;
+            else
+                lpprb = 0.0f;//so that SSS inf vector is uninformative//(HUGE_VALF;)
+            spvals.Push(lpprb);
+            bytes += sizeof(lpprb);
+        }
+        fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+        if(fp.bad())
+            throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+        addrfields[pmv2DSSsprbs+t] += bytes;
+    }
+    //}}//SS
+
+
+    //{{HDP1
+    //cluster membership probabilities:
+    spvals.Clear();
+    bytes = 0;
+    if( MAXFILESIZE <= addrfields[pmv2DHDP1prb])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of HDP1 cluster membership probabilities.");
+    fp.seekp(std::streamoff(addrfields[pmv2DHDP1prb]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    for( m = 0; m < pssm.GetSize(); m++ ) {
+        res = pssm.GetResidueAt(m);
+        if( res == GAP )
+            continue;//omit unused positions and gaps
+        noppps = (int)pssm.GetNoPPProbsAt(m);
+        if( noppps < 1 ) {
+            sprintf(strbuf, "BinaryWriteProfile_v2_2: Invalid # HDP1 support clusters at %d.", m);
+            throw MYRUNTIME_ERROR(strbuf);
+        }
+        ppprobs = pssm.GetPPProbsAt(m);
+        if( ppprobs == NULL ) {
+            sprintf(strbuf, "BinaryWriteProfile_v2_2: Null HDP1 cluster membership probabilities at %d.", m);
+            throw MYRUNTIME_ERROR(strbuf);
+        }
+        spvals.Push(ppprobs[0]);
+        bytes += sizeof(ppprobs[0]);
+    }
+    fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pmv2DHDP1prb] += bytes;
+
+    //cluster indices:
+    intvals.Clear();
+    bytes = 0;
+    if( MAXFILESIZE <= addrfields[pmv2DHDP1ind])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of HDP1 cluster indices.");
+    fp.seekp(std::streamoff(addrfields[pmv2DHDP1ind]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    for( m = 0; m < pssm.GetSize(); m++ ) {
+        res = pssm.GetResidueAt(m);
+        if( res == GAP )
+            continue;//omit unused positions and gaps
+        pppndxs = pssm.GetPPPIndsAt(m);
+        if( pppndxs == NULL ) {
+            sprintf(strbuf, "BinaryWriteProfile_v2_2: Null HDP1 cluster indices at %d.", m);
+            throw MYRUNTIME_ERROR(strbuf);
+        }
+        intvals.Push(pppndxs[0]);
+        bytes += sizeof(pppndxs[0]);
+    }
+    fp.write(reinterpret_cast<const char*>(intvals.GetVector()),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pmv2DHDP1ind] += bytes;
+    //}}//HDP1
+
+
+    //profile amino acid sequence:
+    sequence.reserve(pssm.GetSize()+4);
+    for( m = 0; m < pssm.GetSize(); m++ )
+        sequence += DehashCode(pssm.GetResidueAt(m));
+    if( MAXFILESIZE <= addrfields[pmv2Daa])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid profile sequence address.");
+    fp.seekp(std::streamoff(addrfields[pmv2Daa]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    bytes = pssm.GetSize();
+    fp.write(sequence.c_str(),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pmv2Daa] += bytes;
+
+    //profile secondary structure state sequence:
+    sequence.erase();
+    for( m = 0; m < pssm.GetSize(); m++ )
+        sequence += pssm.GetSSSSet()? DehashSSCodeLc(pssm.GetSSStateAt(m)): ' ';
+    if( MAXFILESIZE <= addrfields[pmv2DSSstate])
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid sec. structure state sequence address.");
+    fp.seekp(std::streamoff(addrfields[pmv2DSSstate]));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    bytes = pssm.GetSize();
+    fp.write(sequence.c_str(),bytes);
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrfields[pmv2DSSstate] += bytes;
+
+
+    //addresses of the ends of filenames are not included!
+//     if( MAXFILESIZE <= addrfname_end_addrs)
+//         throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of filename end address.");
+//     fp.seekp(std::streamoff(addrfname_end_addrs));
+//     if(fp.fail())
+//         throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+//     bytes = addrfname + (pssm.GetName()? strlen(pssm.GetName())+1: 1);//including the terminal 0
+//     fp.write(reinterpret_cast<const char*>(&bytes),sizeof(bytes));
+//     if(fp.bad())
+//         throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+//     addrfname_end_addrs += sizeof(bytes);
+
+    //address of the end of description:
+    if( MAXFILESIZE <= addrdesc_end_addrs)
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid address of description end address.");
+    fp.seekp(std::streamoff(addrdesc_end_addrs));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    bytes = addrdesc + (pssm.GetDescription()? strlen(pssm.GetDescription())+1: 1);//including the terminal 0
+    fp.write(reinterpret_cast<const char*>(&bytes),sizeof(bytes));
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrdesc_end_addrs += sizeof(bytes);
+
+
+    //profile filenames are not included!
+//     if( MAXFILESIZE <= addrfname)
+//         throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid profile filename address.");
+//     fp.seekp(std::streamoff(addrfname));
+//     if(fp.fail())
+//         throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+//     if( pssm.GetName()) {
+//         bytes = strlen(pssm.GetName())+1;//including the terminal 0
+//         fp.write(pssm.GetName(),bytes);
+//     } else {
+//         bytes = 1;
+//         fp.write(&ch0,bytes);
+//     }
+//     if(fp.bad())
+//         throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+//     addrfname += bytes;
+
+    //profile description:
+    if( MAXFILESIZE <= addrdesc)
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Invalid profile description address.");
+    fp.seekp(std::streamoff(addrdesc));
+    if(fp.fail())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Failed to set file position.");
+    if( pssm.GetDescription()) {
+        bytes = strlen(pssm.GetDescription())+1;//including the terminal 0
+        fp.write(pssm.GetDescription(),bytes);
+    } else {
+        bytes = 1;
+        fp.write(&ch0,bytes);
+    }
+    if(fp.bad())
+        throw MYRUNTIME_ERROR("BinaryWriteProfile_v2_2: Write to file failed.");
+    addrdesc += bytes;
 }
 
 // =========================================================================

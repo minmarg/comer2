@@ -5,7 +5,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,6 +117,7 @@ void CuBatchScoreMatrix::ComputeScoreMatrix( bool /*final*/ )
 //
 void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
     cudaStream_t streamproc,
+    const bool mapalnconfig,
     CUBSM_TYPE* sssscores,
     SerializedScoresAttr ssssattr,
     CUBSM_TYPE* cvs2scores,
@@ -136,6 +138,12 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
     MYMSG( "CuBatchScoreMatrix::ComputeScoreMatrixDevice", 4 );
     const mystring preamb = "CuBatchScoreMatrix::ComputeScoreMatrixDevice: ";
     myruntime_error mre;
+
+    //const bool mapalnconfig = MOptions::GetMAPALN()==1;
+    const CUBSM_TYPE initscoreshift =
+        mapalnconfig? CONSTINITSHIFT_MAPALN1: CONSTINITSHIFT_MAPALN0;
+    FtorRoundMAPALN1 ftor_mapaln1;
+    FtorRoundMAPALN0 ftor_mapaln0;
 
     const float ssswgt = MOptions::GetSSSWGT();
     const float cvswgt = MOptions::GetCVSWGT();
@@ -170,7 +178,7 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
     //configuration for CalcSMInitSMEMUnroll2x
     dim3 nthrds(SMINIT_2DCACHE_DIM,SMINIT_2DCACHE_DIM,1);
     dim3 nblcks(((unsigned int)(ndbxposs)+2*nthrds.x-1)/(2*nthrds.x),
-				((unsigned int)nqyposs+nthrds.y-1)/nthrds.y,1);
+                ((unsigned int)nqyposs+nthrds.y-1)/nthrds.y,1);
 
     try {
         MYMSGBEGl(3)
@@ -223,8 +231,9 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
                 hdpsattr,
                 hdp1swgt,
                 (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
-				(uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
                 //NOTE: these pointers must be aligned
+                initscoreshift,
                 outscores,
                 NULL/*outmodscores*/
             );
@@ -234,8 +243,9 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
             //{{Initial scores
             CalcSM_Init_SMEMUnroll2x<<<nblcks,nthrds,0,streamproc>>>(
                 (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
-				(uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
                 //NOTE: these pointers must be aligned
+                initscoreshift,
                 outscores,
                 NULL/*outmodscores*/
             );
@@ -271,6 +281,7 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
 //                 hdp1swgt,
 //                 (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
 //                 (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+//                 ftor_mapaln1,
 //                 //NOTE: these pointers must be aligned
 //                 outscores,
 //                 outmodscores
@@ -281,20 +292,37 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
 
         if( ssswgt > 0.0f && cvswgt > 0.0f ) {
             //{{Scoring secondary structure and context vector match
-            CalcSM_SSSS_CVS2S_SMEMUnroll2x
-            <<<nblcks,nthrds,ssssattr.szalloc_+cvs2sattr.szalloc_,streamproc>>>(
-                sssscores,
-                ssssattr,
-                ssswgt,
-                cvs2scores,
-                cvs2sattr,
-                cvswgt,
-                (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
-				(uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
-                //NOTE: these pointers must be aligned
-                outscores,
-                outmodscores
-            );
+            if(mapalnconfig)
+                CalcSM_SSSS_CVS2S_SMEMUnroll2x
+                <<<nblcks,nthrds,ssssattr.szalloc_+cvs2sattr.szalloc_,streamproc>>>(
+                    sssscores,
+                    ssssattr,
+                    ssswgt,
+                    cvs2scores,
+                    cvs2sattr,
+                    cvswgt,
+                    (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
+                    (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                    ftor_mapaln1,
+                    //NOTE: these pointers must be aligned
+                    outscores,
+                    outmodscores
+                );
+            else
+                CalcSM_SSSS_CVS2S_SMEMUnroll2x
+                <<<nblcks,nthrds,ssssattr.szalloc_+cvs2sattr.szalloc_,streamproc>>>(
+                    sssscores,
+                    ssssattr,
+                    ssswgt,
+                    cvs2scores,
+                    cvs2sattr,
+                    cvswgt,
+                    (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
+                    (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                    ftor_mapaln0,
+                    outscores,
+                    outmodscores
+                );
             MYCUDACHECKLAST;
             //}}
         } else if( ssswgt > 0.0f ) {
@@ -304,7 +332,7 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
                 ssssattr,
                 ssswgt,
                 (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
-				(uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
                 //NOTE: these pointers must be aligned
                 outscores,
                 outmodscores
@@ -313,16 +341,29 @@ void CuBatchScoreMatrix::ComputeScoreMatrixDevice(
             //}}
         } else if( cvswgt > 0.0f ) {
             //{{Scoring context vector match
-            CalcSM_CVS2S_SMEMUnroll2x<<<nblcks,nthrds,cvs2sattr.szalloc_,streamproc>>>(
-                cvs2scores,
-                cvs2sattr,
-                cvswgt,
-                (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
-				(uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
-                //NOTE: these pointers must be aligned
-                outscores,
-                outmodscores
-            );
+            if(mapalnconfig)
+                CalcSM_CVS2S_SMEMUnroll2x<<<nblcks,nthrds,cvs2sattr.szalloc_,streamproc>>>(
+                    cvs2scores,
+                    cvs2sattr,
+                    cvswgt,
+                    (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
+                    (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                    ftor_mapaln1,
+                    //NOTE: these pointers must be aligned
+                    outscores,
+                    outmodscores
+                );
+            else
+                CalcSM_CVS2S_SMEMUnroll2x<<<nblcks,nthrds,cvs2sattr.szalloc_,streamproc>>>(
+                    cvs2scores,
+                    cvs2sattr,
+                    cvswgt,
+                    (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,
+                    (uint)querposoffset, (uint)bdb1posoffset, (uint)bdbCposoffset,
+                    ftor_mapaln0,
+                    outscores,
+                    outmodscores
+                );
             MYCUDACHECKLAST;
             //}}
         }

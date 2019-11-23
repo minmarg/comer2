@@ -53,6 +53,7 @@ __global__ void CalcSM_Init_HDP1S_SMEMUnroll2x(
     float hdp1swgt,
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
     uint querposoffset, uint bdb1posoffset, uint bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* __restrict__ outscores,
     CUBSM_TYPE* __restrict__ /*outmodscores*/ )
 {
@@ -180,6 +181,7 @@ __global__ void CalcSM_Init_HDP1S_SMEMUnroll2x(
         dbproCache,
         qrposCache,
         dbposCache,
+        CONSTINITSHIFT,
         pronr/*col2 < (ndb1poss + ndbCposs)*/,
         score1, score2
     );

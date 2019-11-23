@@ -26,6 +26,7 @@
 #include "libmycu/cupro/PM2DVectorFields.h"
 #include "libmycu/cupro/PMBatchProData.h"
 #include "libmycu/cupro/IOProfileModel.h"
+#include "libmycu/cupro/CuDeviceMemory.cuh"
 #include "libmycu/cupro/CuBatchProcessing.cuh"
 
 #include "libHDP/HDPscores.h"
@@ -45,20 +46,18 @@
 //
 DevCommThread::DevCommThread(
     int tid,
-    DeviceProperties dprop,
-    AlnWriter* writer,
+    CuDeviceMemory* dmem,
+    int areano,
     Configuration* config,
+    AlnWriter* writer,
     const mystring* queryfnames,
     const mystring* querydescs,
-    char** querypmbeg,
-    char** querypmend,
-    const mystring* bdb1fnames,
-    const mystring* bdb1descs,
-    char** bdb1pmbeg,
-    char** bdb1pmend,
+    const char** bdb1descs,
     size_t prodbsize,
     size_t ndbentries )
-:   mytid_(tid),
+:   
+    mytid_(tid),
+    myareano_(areano),
     tobj_(NULL),
     req_msg_(THREAD_MSG_UNSET),
     msg_addressee_(THREAD_MSG_ADDRESSEE_NONE),
@@ -68,17 +67,12 @@ DevCommThread::DevCommThread(
     chunkdatalen_(0UL),
     chunknpros_(0UL),
     //
-    dprop_(dprop),
+    dmem_(dmem),
     alnwriter_(writer),
     config_(config),
     cached_queryfnames_(queryfnames),
     cached_querydescs_(querydescs),
-    cached_querypmbeg_(querypmbeg),
-    cached_querypmend_(querypmend),
-    cached_bdb1fnames_(bdb1fnames),
     cached_bdb1descs_(bdb1descs),
-    cached_bdb1pmbeg_(bdb1pmbeg),
-    cached_bdb1pmend_(bdb1pmend),
     mstr_set_prodbsize_(prodbsize),
     mstr_set_ndbentries_(ndbentries),
     //query-specific arguments:
@@ -87,23 +81,44 @@ DevCommThread::DevCommThread(
     mstr_set_scorethld_(0.0f),
     mstr_set_logevthld_(0.0f),
     //data arguments:
+    mstr_set_lastchunk_(false),
+    mstr_set_chunkno_(-1),
+    mstr_set_nqueries_(0UL),
     mstr_set_qrysernr_(-1),
-    mstr_set_bdbC_(nullptr),
-    qrysernr_(-1)
+    mstr_set_qrystep_(0UL),
+    mstr_set_scorethlds_(NULL),
+    mstr_set_logevthlds_(NULL),
+    mstr_set_bdbCdesc_(NULL),
+    mstr_set_cnt_(NULL),
+    scorethld_(0.0f),
+    logevthld_(0.0f),
+    lastchunk_(false),
+    chunkno_(-1),
+    nqueries_(0UL),
+    qrysernr_(-1),
+    qrystep_(0UL),
+    scorethlds_(NULL),
+    logevthlds_(NULL),
+    bdbCdesc_(NULL),
+    cnt_(NULL)
 {
     MYMSG( "DevCommThread::DevCommThread", 3 );
+    if( dmem_ == NULL )
+        throw MYRUNTIME_ERROR("DevCommThread::DevCommThread: Null device memory object.");
     memset( mstr_set_querypmbeg_, 0, pmv2DTotFlds * sizeof(void*));
     memset( mstr_set_querypmend_, 0, pmv2DTotFlds * sizeof(void*));
     memset( mstr_set_bdb1pmbeg_, 0, pmv2DTotFlds * sizeof(void*));
     memset( mstr_set_bdb1pmend_, 0, pmv2DTotFlds * sizeof(void*));
     memset( mstr_set_bdbCpmbeg_, 0, pmv2DTotFlds * sizeof(void*));
     memset( mstr_set_bdbCpmend_, 0, pmv2DTotFlds * sizeof(void*));
+    memset( mstr_set_szCpm2dvfields_, 0, pmv2DTotFlds * sizeof(size_t));
     memset( querypmbeg_, 0, pmv2DTotFlds * sizeof(void*));
     memset( querypmend_, 0, pmv2DTotFlds * sizeof(void*));
     memset( bdb1pmbeg_, 0, pmv2DTotFlds * sizeof(void*));
     memset( bdb1pmend_, 0, pmv2DTotFlds * sizeof(void*));
     memset( bdbCpmbeg_, 0, pmv2DTotFlds * sizeof(void*));
     memset( bdbCpmend_, 0, pmv2DTotFlds * sizeof(void*));
+    memset( szCpm2dvfields_, 0, pmv2DTotFlds * sizeof(size_t));
     tobj_ = new std::thread( &DevCommThread::Execute, this, (void*)NULL );
 }
 
@@ -138,26 +153,16 @@ void DevCommThread::Execute( void* )
 
     try {
         CuBatchProcessing cbpc( 
-            alnwriter_,
+            dmem_,
+            myareano_,
             config_,
-            dprop_,
-            HDPSCORES.GetScores()!=NULL,
-            MOptions::GetMINPP()<1.0f,
-            dprop_.reqmem_,
+            alnwriter_,
             cached_queryfnames_,
             cached_querydescs_,
-            cached_bdb1fnames_,
             cached_bdb1descs_
         );
 
-        cbpc.CacheSSENNWeights();
-        cbpc.CacheSSSScores( SSSSCORES );
-        cbpc.CacheCVS2Scores( CVS2SCORES );
-        cbpc.CacheHDPScores( HDPSCORES );
-
-        cbpc.CacheData(
-            cached_querypmbeg_, cached_querypmend_,
-            cached_bdb1pmbeg_, cached_bdb1pmend_ );
+        cbpc.SetDbDetails( mstr_set_prodbsize_, mstr_set_ndbentries_ );
 
         while(1) {
             //wait until the master bradcasts a message
@@ -195,7 +200,7 @@ void DevCommThread::Execute( void* )
             switch(reqmsg) {
                 case tthreadmsgGetDataChunkSize:
                         //master has set the query length, score and e-value thresholds;
-                        CopyDataOnMsgGetDataChunkSize(cbpc);
+                        GetArgsOnMsgGetDataChunkSize(cbpc);
                         break;
                 case tthreadmsgProcessNewData:
                         //master has written data addresses
@@ -210,7 +215,7 @@ void DevCommThread::Execute( void* )
                 case tthreadmsgGetDataChunkSize:
                         //master has set the query length, score and e-value thresholds;
                         CalculateMaxDbDataChunkSize( cbpc );
-                        rspmsg = ttrespmsgDataReady;
+                        rspmsg = ttrespmsgChunkSizeReady;
                         break;
                 case tthreadmsgProcessNewData:
                         //master has written data addresses
@@ -266,6 +271,7 @@ void DevCommThread::Execute( void* )
             rsp_msg_ = THREAD_MSG_ERROR;
         }
         cv_rsp_msg_.notify_one();
+        ResetMasterData();
         return;
     }
 }
@@ -274,13 +280,14 @@ void DevCommThread::Execute( void* )
 // CalculateMaxDbDataChunkSize: calculate maximum database data chunk size 
 // given query length previously set by the master thread
 //
-void DevCommThread::CalculateMaxDbDataChunkSize( CuBatchProcessing& cbpc )
+void DevCommThread::CalculateMaxDbDataChunkSize( CuBatchProcessing& /*cbpc*/ )
 {
+    throw MYRUNTIME_ERROR("DevCommThread::CalculateMaxDbDataChunkSize: Currently should not be called!");
     //safely write member variables as long as the master waiting for them is blocked
-    size_t chunkdatasize = cbpc.CalcMaxDbDataChunkSize( nqyposs_ );
-    size_t chunkdatalen = cbpc.GetCurrentMaxDbPos();
-    size_t chunknpros = cbpc.GetCurrentMaxNDbPros();
-    SetChunkDataAttributes( chunkdatasize, chunkdatalen, chunknpros);
+//     size_t chunkdatasize = cbpc.CalcMaxDbDataChunkSize( nqyposs_ );
+//     size_t chunkdatalen = cbpc.GetCurrentMaxDbPos();
+//     size_t chunknpros = cbpc.GetCurrentMaxNDbPros();
+//     SetChunkDataAttributes( chunkdatasize, chunkdatalen, chunknpros);
 }
 
 // -------------------------------------------------------------------------
@@ -288,11 +295,96 @@ void DevCommThread::CalculateMaxDbDataChunkSize( CuBatchProcessing& cbpc )
 //
 void DevCommThread::ProcessScoreMatrix( CuBatchProcessing& cbpc )
 {
+    //NOTE: lock so that other threads (if any) assigned to the same 
+    // device wait for the transfer to complete
+    {   std::lock_guard<std::mutex> lck(dmem_->GetDeviceProp().shdcnt_->get_mutex());
+        int cntval = dmem_->GetDeviceProp().shdcnt_->get_under_lock();
+        if( cntval != chunkno_ ) {
+            dmem_->GetDeviceProp().shdcnt_->inc_under_lock();
+            if( bdbCpmbeg_[0] && bdbCpmend_[0] /*&& szCpm2dvfields_[1]*/)
+                cbpc.TransferCPMData(bdbCpmbeg_, bdbCpmend_, szCpm2dvfields_);
+        }
+    }
+
+    char msgbuf[BUF_MAX];
+    char* qrypmbeg[pmv2DTotFlds];
+    int qrypercprcd = 0;
+
+    memcpy( qrypmbeg, querypmbeg_, pmv2DTotFlds * sizeof(void*));
+    PMBatchProData::PMDataSkipNPros( qrypmbeg, qrysernr_ );
+
+    for(int q = qrysernr_, n = 0;
+        q < nqueries_; 
+        q += qrystep_, n++,
+        PMBatchProData::PMDataSkipNPros( qrypmbeg, qrystep_ ))
+    {
+        MYMSGBEGl(3)
+            sprintf(msgbuf, "Processing QUERY %d (%s)",q,cached_queryfnames_[q].c_str());
+            MYMSG(msgbuf,3);
+        MYMSGENDl
+        //
+        size_t qrylen = PMBatchProData::GetPMDataLen1At(qrypmbeg);
+        //
+        //increase # chunks being processed only if this is not the last chunk!
+        //this ensures the processing of all chunks and informs the writer to begin 
+        // writing once the last chunk has finished
+        if( !lastchunk_ )
+            alnwriter_->IncreaseQueryNParts(q);
+        //
+        cbpc.SetQueryLen(qrylen);
+        cbpc.SetScoreThreshold(scorethlds_[q]);
+        cbpc.SetLogEThreshold(logevthlds_[q]);
+        //
+        cbpc.ProcessScoreMatrix( q,
+            qrylen,
+            qrypmbeg,// querypmend_, 
+            bdb1pmbeg_[0]? bdb1pmbeg_: NULL, bdb1pmend_[0]? bdb1pmend_: NULL,
+            bdbCdesc_,
+            bdbCpmbeg_[0]? bdbCpmbeg_: NULL, bdbCpmend_[0]? bdbCpmend_: NULL,
+            szCpm2dvfields_,
+            cnt_
+        );
+        //
+        MYMSGBEGl(1)
+            if( qrypercprcd !=(n+1)*10/nqueries_) {
+                qrypercprcd = (n+1)*10/nqueries_;
+                sprintf(msgbuf, "Worker %d processed %d%% of queries",mytid_,qrypercprcd*10);
+                MYMSG(msgbuf,1);
+            }
+        MYMSGENDl
+    }
+}
+
+// -------------------------------------------------------------------------
+// ProcessScoreMatrix_obs: batch processing of part of score matrix
+//
+void DevCommThread::ProcessScoreMatrix_obs( CuBatchProcessing& cbpc )
+{
+    cbpc.SetQueryLen(nqyposs_);
+    cbpc.SetScoreThreshold(scorethld_);
+    cbpc.SetLogEThreshold(logevthld_);
+
+    //NOTE: lock so that other threads (if any) assigned to the same 
+    // device wait for the transfer to complete
+    {   std::lock_guard<std::mutex> lck(dmem_->GetDeviceProp().shdcnt_->get_mutex());
+        int cntval = dmem_->GetDeviceProp().shdcnt_->get_under_lock();
+        if( cntval != chunkno_ ) {
+            dmem_->GetDeviceProp().shdcnt_->inc_under_lock();
+            if( bdbCpmbeg_[0] && bdbCpmend_[0] /*&& szCpm2dvfields_[1]*/)
+                cbpc.TransferCPMData(bdbCpmbeg_, bdbCpmend_, szCpm2dvfields_);
+        }
+    }
+
+    size_t qrylen = PMBatchProData::GetPMDataLen1At(querypmbeg_);
+
     cbpc.ProcessScoreMatrix(
         qrysernr_,
-        std::move(bdbC_),
-        querypmbeg_, querypmend_, 
+        qrylen,
+        querypmbeg_,// querypmend_, 
         bdb1pmbeg_[0]? bdb1pmbeg_: NULL, bdb1pmend_[0]? bdb1pmend_: NULL,
-        bdbCpmbeg_[0]? bdbCpmbeg_: NULL, bdbCpmend_[0]? bdbCpmend_: NULL
+        bdbCdesc_,
+        bdbCpmbeg_[0]? bdbCpmbeg_: NULL, bdbCpmend_[0]? bdbCpmend_: NULL,
+        szCpm2dvfields_,
+        cnt_
     );
 }

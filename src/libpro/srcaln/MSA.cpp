@@ -6,7 +6,8 @@
 #include "liblib/mybase.h"
  
 // #include <time.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>

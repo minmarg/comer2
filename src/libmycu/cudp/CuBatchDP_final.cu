@@ -19,9 +19,9 @@
 // =========================================================================
 
 //attributes of passed profiles
-__device__ unsigned int d_gDPPassedPros[nTPassedPros];
+//__device__ unsigned int d_gDPPassedPros[nTPassedPros];
 //mutex for updating the attributes of passed profiles
-__device__ volatile int d_dpfinal_mutex = 0;
+//__device__ volatile int d_dpfinal_mutex = 0;
 
 // =========================================================================
 
@@ -68,7 +68,8 @@ __global__ void FinalizeDPPro(
     CUBDP_TYPE* __restrict__ tmpdpdiagbuffers,
 //     CUBDP_TYPE* __restrict__ tmpdpbotbuffer,
     uint* __restrict__ maxscoordsbuf,
-    char* __restrict__ btckdata )
+    char* __restrict__ btckdata,
+    uint* __restrict__ globvarsbuf )
 {
     /*__shared__ */LNTYPE dbprodstCache;//distance in positions to db profile blockIdx.x
     /*__shared__ */INTYPE dbprolenCache;//length of profile blockIdx.x
@@ -103,6 +104,7 @@ __global__ void FinalizeDPPro(
     }
 
     //{{use registers efficiently
+    __syncwarp();
     dbprodstCache = __shfl_sync(0xffffffff, dbprodstCache, 0);
     dbprolenCache = __shfl_sync(0xffffffff, dbprolenCache, 0);
     //}}
@@ -250,11 +252,16 @@ __global__ void FinalizeDPPro(
             //get profile serial number and address for this profile;
             //NOTE: perform the operations locked by a mutex so that
             // other thread blocks do not intervene in between!
-            LOCK( &d_dpfinal_mutex );
-                npr = atomicAdd( d_gDPPassedPros+dpppNPassedPros, 1 );
-                dst = atomicAdd( d_gDPPassedPros+dpppNPosits, dbprolenCache );
-            UNLOCK( &d_dpfinal_mutex );
-            atomicMax( d_gDPPassedPros+dpppMaxProLen, dbprolenCache );
+            //LOCK( &d_dpfinal_mutex );
+            //    npr = atomicAdd( d_gDPPassedPros+dpppNPassedPros, 1 );
+            //    dst = atomicAdd( d_gDPPassedPros+dpppNPosits, dbprolenCache );
+            //UNLOCK( &d_dpfinal_mutex );
+            //atomicMax( d_gDPPassedPros+dpppMaxProLen, dbprolenCache );
+            LOCK(globvarsbuf+CuDeviceMemory::dgvMutex);
+                npr = atomicAdd( globvarsbuf+CuDeviceMemory::dgvNPassedPros, 1 );
+                dst = atomicAdd( globvarsbuf+CuDeviceMemory::dgvNPosits, dbprolenCache );
+                atomicMax( globvarsbuf+CuDeviceMemory::dgvMaxProLen, dbprolenCache );
+            UNLOCK(globvarsbuf+CuDeviceMemory::dgvMutex);
 #else
             npr = blockIdx.x;
 #endif
@@ -303,7 +310,8 @@ __global__ void FinalizeDP(
     CUBDP_TYPE* __restrict__ tmpdpdiagbuffers,
     CUBDP_TYPE* __restrict__ /*tmpdpbotbuffer*/,
     uint* __restrict__ maxscoordsbuf,
-    char* __restrict__ btckdata )
+    char* __restrict__ btckdata,
+    uint* __restrict__ globvarsbuf )
 {
     if( blockIdx.x || threadIdx.x )
         return;
@@ -311,12 +319,16 @@ __global__ void FinalizeDP(
     uint npros = ndb1pros+ndbCpros;
 
 #ifdef UNSRT_PASSED_PROFILES
-    d_gDPPassedPros[dpppNPassedPros] = 0;
-    d_gDPPassedPros[dpppNPosits] = 0;
-    d_gDPPassedPros[dpppMaxProLen] = 0;
+//     d_gDPPassedPros[dpppNPassedPros] = 0;
+//     d_gDPPassedPros[dpppNPosits] = 0;
+//     d_gDPPassedPros[dpppMaxProLen] = 0;
+    globvarsbuf[CuDeviceMemory::dgvNPassedPros] = 0;
+    globvarsbuf[CuDeviceMemory::dgvNPosits] = 0;
+    globvarsbuf[CuDeviceMemory::dgvMaxProLen] = 0;
 #endif
 
-    UNLOCK( &d_dpfinal_mutex );
+//     UNLOCK( &d_dpfinal_mutex );
+    UNLOCK(globvarsbuf+CuDeviceMemory::dgvMutex);
 
     FinalizeDPPro<<<npros,CUDP_2DCACHE_DIM_D>>>( 
         scorethld,
@@ -328,7 +340,8 @@ __global__ void FinalizeDP(
         tmpdpdiagbuffers, 
 //         tmpdpbotbuffer,
         maxscoordsbuf,
-        btckdata
+        btckdata,
+        globvarsbuf
     );
 
 #if !defined(UNSRT_PASSED_PROFILES)

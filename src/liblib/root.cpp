@@ -3,7 +3,8 @@
  *   Institute of Biotechnology, Vilnius University                        *
  ***************************************************************************/
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include "root.h"
 
 // Greatest common divisor

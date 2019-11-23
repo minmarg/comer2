@@ -5,7 +5,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <ctype.h>
 
 #include "extsp/psl.h"

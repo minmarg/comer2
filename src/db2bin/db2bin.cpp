@@ -103,7 +103,8 @@ int main( int argc, char *argv[] )
         if( !db )
             throw MYRUNTIME_ERROR("Not enough memory.");
 
-        db->MakeBin();
+        //db->MakeBin();
+        db->MakeBin_v2_2();
 
     CATCH_ERROR_RETURN(if(db) delete db);
 

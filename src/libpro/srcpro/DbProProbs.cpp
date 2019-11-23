@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include "extsp/psl.h"
 #include "extsp/pslvector.h"
@@ -82,7 +83,7 @@ void DbProProbs::ReadProbs( const char* filename )
     }
 
     try {
-        message( msg.c_str());
+        MYMSG(msg.c_str(),1);
         NewProbs();
         ReadProbsHelper( fp, GetProbs());
     } catch( myexception const& ex ) {

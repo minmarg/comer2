@@ -5,7 +5,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -247,9 +248,33 @@ bool AbstractScoreMatrix<TScore>::ComputeLengthAdjustment(
     size_t query_len, uint64_mt db_len, size_t no_sequences )
 {
     const Configuration& config = GetConfiguration(CTGapped);
-    return ComputeLengthAdjustment(
-        config.GetLambda(), config.GetK(), config.GetAlpha(), config.GetBeta(),
-        query_len, db_len, no_sequences );
+    bool res = true;
+    auto mit = map_lencrtd_.find(query_len);
+    if( mit == map_lencrtd_.end())
+    {
+        //not found
+        res = ComputeLengthAdjustment(
+            config.GetLambda(), config.GetK(), config.GetAlpha(), config.GetBeta(),
+            query_len, db_len, no_sequences );
+        //save the values
+        map_lencrtd_.insert({query_len,{GetDeltaLength(),GetSearchSpace()}});
+    }
+    else {
+        SetDeltaLength( mit->second.first );
+        SetSearchSpace( mit->second.second );
+        MYMSGBEGl(3)
+            char msgbuf[ONEK];
+            if( GetDeltaLength())
+                sprintf( msgbuf, "AbstractScoreMatrix::ComputeLengthAdjustment: "
+                    "search_space= %llu delta_length= %zu [found]",
+                    GetSearchSpace(), GetDeltaLength());
+            else
+                sprintf( msgbuf, "AbstractScoreMatrix::ComputeLengthAdjustment: "
+                    "search_space= %llu [found]", GetSearchSpace());
+            MYMSG(msgbuf,3);
+        MYMSGENDl
+    }
+    return res;
 }
 
 // -------------------------------------------------------------------------

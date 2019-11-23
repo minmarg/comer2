@@ -10,7 +10,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include "extsp/psl.h"
 #include "extsp/pslvector.h"

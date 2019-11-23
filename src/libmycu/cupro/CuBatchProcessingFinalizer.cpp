@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include <memory>
 #include <utility>
@@ -20,6 +21,8 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+
+#include "tsafety/TSCounterVar.h"
 
 #include "liblib/fmtdescription.h"
 #include "libmycu/cucom/cucommon.h"
@@ -55,8 +58,7 @@ CuBatchProcessingFinalizer::CuBatchProcessingFinalizer(
     Configuration* config,
     const mystring* queryfnames,
     const mystring* querydescs,
-    const mystring* bdb1fnames,
-    const mystring* bdb1descs )
+    const char** bdb1descs )
 :   tobj_(NULL),
     req_msg_(CUBPTHREAD_MSG_UNSET),
     rsp_msg_(CUBPTHREAD_MSG_UNSET),
@@ -68,7 +70,6 @@ CuBatchProcessingFinalizer::CuBatchProcessingFinalizer(
     //cached data:
     cached_queryfnames_(queryfnames),
     cached_querydescs_(querydescs),
-    cached_bdb1fnames_(bdb1fnames),
     cached_bdb1descs_(bdb1descs),
     //data arguments:
     cubp_set_qrysernr_(-1),
@@ -77,7 +78,8 @@ CuBatchProcessingFinalizer::CuBatchProcessingFinalizer(
     cubp_set_deltalen_(0U),
     cubp_set_sspace_(0.0f),
     cubp_set_logevthld_(0.0f),
-    cubp_set_bdbC_(nullptr),
+    cubp_set_bdbCdesc_(NULL),
+    cubp_set_cnt_(NULL),
     cubp_set_ndb1pros_(0UL),
     cubp_set_ndbCpros_(0UL),
     cubp_set_querprosOmtd_(0UL),
@@ -177,6 +179,10 @@ void CuBatchProcessingFinalizer::Execute( void* )
                         MYCUDACHECKLAST;
                         ;;
                         CompressResults();
+                        //results have been processed and the buffers are no longer needed;
+                        //decrease the counter of data chunk processed by an agent
+                        if( cubp_set_cnt_)
+                            cubp_set_cnt_->dec();
                         SortCompressedResults();
                         PassResultsToWriter();
                         ;;
@@ -188,7 +194,7 @@ void CuBatchProcessingFinalizer::Execute( void* )
                         rspmsg = cubptrespmsgTerminating;
                         break;
                 default:
-                        rspmsg = CUBPTHREAD_MSG_UNSET;
+                        //rspmsg = CUBPTHREAD_MSG_UNSET;
                         break;
             };
 
@@ -201,9 +207,9 @@ void CuBatchProcessingFinalizer::Execute( void* )
             //save response code
             rsp_msg_ = rspmsg;
 
-//             //unlock the mutex and notify the parent using the cv
-//             lck_msg.unlock();
-//             cv_msg_.notify_one();
+            //unlock the mutex and notify the parent using the cv
+            lck_msg.unlock();
+            cv_msg_.notify_one();
 
             if( reqmsg < 0 || reqmsg == cubpthreadmsgTerminate)
                 //terminate execution
@@ -221,7 +227,7 @@ void CuBatchProcessingFinalizer::Execute( void* )
     if( mre.isset()) {
         error( mre.pretty_format().c_str());
         SetResponseError();
-//         cv_msg_.notify_one();
+        cv_msg_.notify_one();
         return;
     }
 }
@@ -256,7 +262,6 @@ void CuBatchProcessingFinalizer::PassResultsToWriter()
             std::move(annotptrs_)
         );
     }
-    cubp_set_bdbC_.reset();
 }
 
 // -------------------------------------------------------------------------
@@ -301,9 +306,7 @@ void CuBatchProcessingFinalizer::CompressResults()
     size_t szannot = 0UL;
     size_t szalns = 0UL;
     size_t szalnswodesc = 0UL;
-    const mystring* name;//profile name
-    const mystring* desc;//profile description
-    static const bool printname = false;
+    const char* desc;//profile description
     int written, sernr = 0;//initialize serial number here
     //
     bool qrysssinuse = 
@@ -367,26 +370,20 @@ void CuBatchProcessingFinalizer::CompressResults()
         double evalue = GetEvalue(logeval);
         float score = GetOutputAlnDataField<float>(prondx, dp2oadScore);
         //get the name and description
-        GetDbProfileNameDesc(name, desc, orgprondx);
+        GetDbProfileDesc(desc, orgprondx);
         //make an annotation
         MakeAnnotation( annptr,
-            name, desc, printname, annotlen, annotlen/*width*/,
+            desc, annotlen, annotlen/*width*/,
             score, evalue);
         *annptr++ = 0;//end of record
         //
-        //put the name and description...
+        //put the description...
         int outpos = 0;
         int linepos = 0;
         char addsep = '>';
-        if( printname && name ) {
-            FormatDescription( 
-                outptr, name->c_str(),
-                dsclen, indent, width, outpos, linepos, addsep);
-            addsep = ' ';
-        }
         if( desc )
             FormatDescription( 
-                outptr, desc->c_str(),
+                outptr, desc,
                 dsclen, indent, width, outpos, linepos, addsep);
         PutNL(outptr);
         //
@@ -419,9 +416,7 @@ void CuBatchProcessingFinalizer::CompressResults()
 inline
 void CuBatchProcessingFinalizer::MakeAnnotation( 
     char*& outptr,
-    const mystring* name,
-    const mystring* desc,
-    const bool printname,
+    const char* desc,
     const int maxoutlen,
     const int width,
     const float score,
@@ -432,15 +427,10 @@ void CuBatchProcessingFinalizer::MakeAnnotation(
     int linepos = 0;
     char addsep = 0;
     int written;
-    if( printname && name ) {
-        FormatDescription( 
-            outptr, name->c_str(),
-            maxoutlen, 0/*indent*/, width, outpos, linepos, addsep);
-        addsep = ' ';
-    }
+
     if( desc )
         FormatDescription( 
-            outptr, desc->c_str(),
+            outptr, desc,
             maxoutlen, 0/*indent*/, width, outpos, linepos, addsep);
 
     written = (int)(outptr - p);
@@ -687,22 +677,19 @@ void CuBatchProcessingFinalizer::GetSizeOfCompressedResults(
     static const unsigned int footlines = 4;//number of lines for statistical parameters
     static const unsigned int maxlinelen = 140;//maximum length of lines other than alignment lines
     int alnsize;//alignment size
-    const mystring* name;//profile name
-    const mystring* desc;//profile description
+    const char* desc;//profile description
     //
     bool qrysssinuse = 
         GetQueryFieldPos<LNTYPE>(pmv2DAddrSS, 0/*cubp_set_querposoffset_*/) != (LNTYPE)-1;
 
-    if( cubp_set_bdbCpmbeg_[0] && cubp_set_bdbCpmend_[0] && !cubp_set_bdbC_)
+    if( cubp_set_bdbCpmbeg_[0] && cubp_set_bdbCpmend_[0] && !cubp_set_bdbCdesc_)
         throw MYRUNTIME_ERROR(
-        "CuBatchProcessingFinalizer::GetSizeOfCompressedResults: Null bdbC object.");
+        "CuBatchProcessingFinalizer::GetSizeOfCompressedResults: Null profile descriptions.");
 
 #ifdef __DEBUG__
-    if( !cached_queryfnames_ || !cached_querydescs_ ||
-        !cached_bdb1fnames_ || !cached_bdb1descs_ ||
-        (cubp_set_bdbC_ && (!cubp_set_bdbC_->GetFnames() || !cubp_set_bdbC_->GetDescs())))
+    if( !cached_queryfnames_ || !cached_querydescs_ /*||!cached_bdb1descs_*/)
         throw MYRUNTIME_ERROR(
-        "CuBatchProcessingFinalizer::GetSizeOfCompressedResults: Null data.");
+        "CuBatchProcessingFinalizer::GetSizeOfCompressedResults: Null query descriptions.");
 #endif
 
     *szannot = 0UL;
@@ -789,11 +776,11 @@ void CuBatchProcessingFinalizer::GetSizeOfCompressedResults(
         *szalnswodesc += alnsize;
         //
         //calculate the size for description...
-        GetDbProfileNameDesc(name, desc, orgprondx);
-// /**TEST*/fprintf(stderr,"name= %s prondx= %u cubp_set_logevthld_= %f logeval= %f cubp_set_nqyposs_= %d dbprolen= %d "
+        GetDbProfileDesc(desc, orgprondx);
+// /**TEST*/fprintf(stderr,"desc= %s\n prondx= %u cubp_set_logevthld_= %f logeval= %f cubp_set_nqyposs_= %d dbprolen= %d "
 // "alnlen= %u alnsize= %d alnfrags= %d alnsize= %d\n",
-// name->c_str(),prondx,cubp_set_logevthld_,logeval,cubp_set_nqyposs_,dbprolen,alnlen,alnsize,alnfrags,alnsize);
-        alnlen = (unsigned int)(name->length() + desc->length() + 2);
+// desc,prondx,cubp_set_logevthld_,logeval,cubp_set_nqyposs_,dbprolen,alnlen,alnsize,alnfrags,alnsize);
+        alnlen = (unsigned int)(strlen(desc) + 2);
         alnlen = SLC_MIN(alnlen, dsclen);
         varwidth = alnlen < dscwidth? alnlen: dscwidth;
         alnfrags = (alnlen + width - 1)/width;

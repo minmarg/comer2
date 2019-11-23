@@ -5,7 +5,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,7 @@
 #include "libmycu/cucom/cucommon.h"
 #include "libmycu/cupro/PM2DVectorFields.h"
 #include "libmycu/cupro/PMBatchProData.h"
+#include "libmycu/cupro/CuDeviceMemory.cuh"
 #include "libmycu/cusco/CuBatchScoreMatrix_com.h"
 #include "libmycu/cudp/CuBatchDP_final.cuh"
 #include "libmycu/cudp/CuBatchDP_com.h"
@@ -179,9 +181,9 @@ void CuBatchSS::CalculateStatisticsDeviceHelper(
         throw MYRUNTIME_ERROR( preamb + "Invalid size of search space.");
 #endif
 
-    size_t pass2ndbpros = attrpassed[dpppNPassedPros];
-    size_t pass2ndbxposs = attrpassed[dpppNPosits];
-    size_t pass2dbmaxprolen = attrpassed[dpppMaxProLen];
+    size_t pass2ndbpros = attrpassed[CuDeviceMemory::dgvNPassedPros];
+    size_t pass2ndbxposs = attrpassed[CuDeviceMemory::dgvNPosits];
+    size_t pass2dbmaxprolen = attrpassed[CuDeviceMemory::dgvMaxProLen];
 
     if( pass2ndbpros < 1 || pass2ndbxposs < 1 || pass2dbmaxprolen < 1 )
         return;

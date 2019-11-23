@@ -65,9 +65,9 @@ struct TCharStream {
 // file/directory routines
 bool file_exists( const char*,
 #ifdef OS_MS_WINDOWS
-	unsigned short mode = _S_IFREG
+    unsigned short mode = _S_IFREG
 #else
-	mode_t mode = S_IFREG
+    mode_t mode = S_IFREG
 #endif
 );
 inline

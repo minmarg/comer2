@@ -125,6 +125,30 @@ void Devices::ReadDevices()
 }
 
 // -------------------------------------------------------------------------
+// GetDevIdWithMinRequestedMem: get id of a device with minimum requested 
+// memory
+//
+int Devices::GetDevIdWithMinRequestedMem() const
+{
+    MYMSG( "Devices::GetDevIdWithMinRequestedMem", 7 );
+    int did = -1;
+    size_t minreqmem = (size_t)-1;
+    if( devs_ == NULL )
+        return did;
+    int ndevs = (int)devs_->GetSize();
+    for( int i = 0; i < ndevs; i++ ) {
+        const DeviceProperties* dev = (const DeviceProperties*)devs_->GetValueAt(i);
+        if( dev == NULL )
+            continue;
+        if( dev->reqmem_ < minreqmem ) {
+            minreqmem = dev->reqmem_;
+            did = i;
+        }
+    }
+    return did;
+}
+
+// -------------------------------------------------------------------------
 // SortDevices: sort CUDA-capable devices that have been saved in the list
 //
 
@@ -223,11 +247,20 @@ bool Devices::RegisterDeviceProperties( int devid, ssize_t maxmem, bool checkdup
     dprop->reqmem_ = dprop->totmem_;
     if( 0 < maxmem && maxmem < (ssize_t)dprop->totmem_ )
         dprop->reqmem_ = maxmem;
-    if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE > dprop->totmem_ )
-        dprop->reqmem_ = (dprop->totmem_ <= DeviceProperties::DEVMINMEMORYRESERVE)?
-            dprop->totmem_: dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE;
+    if( dprop->totmem_>>20 >= 16000UL ) {
+        if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE_16G > dprop->totmem_)
+            dprop->reqmem_ = dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE_16G;
+    }
+    else {
+        if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE > dprop->totmem_)
+            dprop->reqmem_ = (dprop->totmem_ <= DeviceProperties::DEVMINMEMORYRESERVE)?
+                dprop->totmem_: dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE;
+    }
     dprop->textureAlignment_ = deviceProp.textureAlignment;
     dprop->maxTexture1DLinear_ = deviceProp.maxTexture1DLinear;
+    dprop->maxGridSize_[0] = deviceProp.maxGridSize[0];
+    dprop->maxGridSize_[1] = deviceProp.maxGridSize[1];
+    dprop->maxGridSize_[2] = deviceProp.maxGridSize[2];
     dprop->deviceOverlap_ = deviceProp.deviceOverlap;
     dprop->asyncEngineCount_ = deviceProp.asyncEngineCount;
     dprop->computeMode_ = deviceProp.computeMode;

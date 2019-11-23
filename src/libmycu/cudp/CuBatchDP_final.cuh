@@ -7,6 +7,7 @@
 #define __CuBatchDP_final_h__
 
 #include "libmycu/cupro/PM2DVectorFields.h"
+#include "libmycu/cupro/CuDeviceMemory.cuh"
 #include "libmycu/cupro/CuBatchProcessing_com.cuh"
 #include "libmycu/cusco/CuBatchScoreMatrix_com.h"
 #include "CuBatchDP_com.h"
@@ -15,15 +16,15 @@
 #define UNSRT_PASSED_PROFILES
 
 //attributes of profiles passed through the DP phase
-enum TPassedPros {
-    dpppNPassedPros,//number of profiles passed to a further stage of processing
-    dpppNPosits,//total number of positions of passed profiles
-    dpppMaxProLen,//maximum profile length over passed profiles
-    nTPassedPros
-};
+// enum TPassedPros {
+//     dpppNPassedPros,//number of profiles passed to a further stage of processing
+//     dpppNPosits,//total number of positions of passed profiles
+//     dpppMaxProLen,//maximum profile length over passed profiles
+//     nTPassedPros
+// };
 
 //device variable: attributes of passed profiles
-extern __device__ unsigned int d_gDPPassedPros[nTPassedPros];
+//extern __device__ unsigned int d_gDPPassedPros[nTPassedPros];
 
 //device functions for finalizing dynamic programming
 
@@ -37,7 +38,8 @@ __global__ void FinalizeDP(
     CUBDP_TYPE* __restrict__ tmpdpdiagbuffers,
     CUBDP_TYPE* __restrict__ tmpdpbotbuffer,
     uint* __restrict__ maxscoordsbuf,
-    char* __restrict__ btckdata
+    char* __restrict__ btckdata,
+    uint* __restrict__ globvarsbuf
 );
 
 // =========================================================================

@@ -16,6 +16,9 @@ srcdir="$(dirname $0)"
 
 mkdir -p "${MYHOME}" || (echo "ERROR: Failed to create destination directory!" && exit 1)
 
+[ -d "${MYHOME}/bin" ] && (rm -fR "${MYHOME}/bin" || exit 1)
+[ -d "${MYHOME}/var" ] && (rm -fR "${MYHOME}/var" || exit 1)
+
 cp -R "${srcdir}/bin" "${MYHOME}/" || (echo "ERROR: Failed to install the package!" && exit 1)
 cp -R "${srcdir}/var" "${MYHOME}/" || (echo "ERROR: Failed to install the package!" && exit 1)
 

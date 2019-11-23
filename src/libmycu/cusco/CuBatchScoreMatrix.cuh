@@ -6,7 +6,8 @@
 #ifndef __CuBatchScoreMatrix_h__
 #define __CuBatchScoreMatrix_h__
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -72,6 +73,7 @@ public:
 
     void ComputeScoreMatrixDevice(
         cudaStream_t streamproc,
+        const bool mapalnconfig,
         CUBSM_TYPE* sssscores,
         SerializedScoresAttr ssssattr,
         CUBSM_TYPE* cvs2scores,

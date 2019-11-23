@@ -9,7 +9,7 @@ Description
 
    The COMER method based on sequence profile-profile comparison is one of
    the most sensitive and accurate computational tools developed for protein
-   alignment and homology search. COMER version 2.1 (COMER2) represents one
+   alignment and homology search. COMER version 2.2 (COMER2) represents one
    of the fastest implementations of calculations for sensitive protein
    homology search. High COMER2 performance is achieved by harnessing the
    power of the Graphics processing unit (GPU). Hence, a GPU is expected
@@ -28,6 +28,16 @@ Available Platforms
   *  MS Windows 64 (64 bit)
   *  Linux x64 (64 bit)
 
+   COMER2 was also compiled with the `clang` version 6 compiler and is
+   expected to install and run on macOS.
+
+Hardware requirements
+=====================
+
+  *  CUDA-enabled GPU(s) with compute capability 3.5 (released in 2012) or
+     above
+  *  2 GB of RAM or more
+
 Getting the COMER Software
 ==========================
 
@@ -36,7 +46,7 @@ Getting the COMER Software
    http://comer2.sourceforge.net
    https://github.com/minmarg/comer2
 
-   The Docker image is available at:
+   The Docker image will be available at:
 
    https://hub.docker.com/r/minmar/comer2
 
@@ -61,9 +71,15 @@ Installation of pre-compiled binaries
 
      MS_Windows_installer\COMER2-installer1.msi
 
+   NOTE: system requirements for the COMER2 software installed on Windows are
+   NVIDIA driver version >=425.25 and CUDA version >=10.1.
+
    On Linux, run the shell script and follow the instructions:
 
      Linux_installer/COMER2-installer1.sh
+
+   NOTE: system requirements for the COMER2 software installed on Linux are 
+   NVIDIA driver version >=418.87 and CUDA version >=10.1.
 
 Installation from source code
 =============================
@@ -98,8 +114,8 @@ Installation from source code
 
   *  GNU Make version 3.81 or greater
 
-  *  GNU GCC compiler version 7.1 or greater (or another C++ compiler that 
-     supports C++11)
+  *  GNU GCC compiler version 4.8 or greater, or LLVM clang compiler
+     version 6 or greater (or another C++ compiler that supports C++11)
 
   *  the NVIDIA CUDA toolkit version 10.0 or greater
      (https://developer.nvidia.com/cuda-downloads)
@@ -214,7 +230,10 @@ Margelevicius, M. (2018) A low-complexity add-on score for protein remote
 homology search with COMER. Bioinformatics 34(12), 2037-2045.
 
 Margelevicius, M. (2019) Estimating statistical significance of local protein
-profile-profile alignments. BMC Bioinformatics, in press.
+profile-profile alignments. BMC Bioinformatics 20, 419.
+
+Margelevicius, M. (2019) COMER2: GPU-accelerated sensitive and specific 
+homology searches. Submitted.
 
 --
 mindaugas.margelevicius@bti.vu.lt

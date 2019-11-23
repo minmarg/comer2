@@ -15,6 +15,10 @@
 // CHANGED with an option
 // #define CUDP_EXPECTED_DBPROLEN 50
 
+//write output alignments at the beginning of each section dedicated for a 
+// pair of profiles (practically no extra cost in performance incurred)
+// #define CUDPMAPDP_FINAL_ALNS_AT_BEG
+
 // -------------------------------------------------------------------------
 // general constant memory details
 // 

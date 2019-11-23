@@ -5,16 +5,18 @@ add_library( mycu STATIC
 	cupro/CuRoDb.cpp
 	cupro/CuDbReader.cpp
 	cupro/PMBatchProData.cpp
+	cupro/TdDataReader.cpp
+	cupro/CuDeviceMemory.cu
 	cupro/CuBatchProcessingFinalizer.cpp
 	cupro/CuBatchProcessing.cu
 #
 	cusco/CuBatchScoreMatrix_Init.cu
 	cusco/CuBatchScoreMatrix_ssss.cu
-	cusco/CuBatchScoreMatrix_cvs2s.cu
+#	cusco/CuBatchScoreMatrix_cvs2s.cu
 	cusco/CuBatchScoreMatrix_hdp1s.cu
 	cusco/CuBatchScoreMatrix_Init_hdp1s.cu
-	cusco/CuBatchScoreMatrix_ssss_cvs2s.cu
-	cusco/CuBatchScoreMatrix_ssss_cvs2s_hdp1s.cu
+#	cusco/CuBatchScoreMatrix_ssss_cvs2s.cu
+#	cusco/CuBatchScoreMatrix_ssss_cvs2s_hdp1s.cu
 	cusco/CuBatchScoreMatrix.cu
 #
 	cudp/CuBatchDP_init.cu
@@ -22,6 +24,7 @@ add_library( mycu STATIC
 	cudp/CuBatchDP_init_corr.cu
 	cudp/CuBatchDP_init_btck.cu
 	cudp/CuBatchDP_final.cu
+	cudp/CuBatchDP_aln_final.cu
 	cudp/CuBatchDP.cu
 #
 	cuss/CuBatchSS_score_probs.cu

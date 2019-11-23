@@ -7,7 +7,8 @@
 
 #include "liblib/mybase.h"
 
-#include <math.h>
+// #include <math.h>
+#include <cmath>
 
 #include "libmycu/cucom/cucommon.h"
 #include "libmycu/cupro/PM2DVectorFields.h"
@@ -94,6 +95,7 @@ __global__ void CalcScoreProbsDynPlmProfile(
 
     //coalescent read
     CUBSM_TYPE score = scores[y * dblen + dbpos + x];
+
     score = VerifyScore( score );
 
     //narrow range of scores induces delays for atomic operations;
@@ -105,6 +107,7 @@ __global__ void CalcScoreProbsDynPlmProfile(
 //        1.0f );
 
     int intscorescaled = (int)rintf( score * CUSS_SCALE_FACTOR );
+
     atomicAdd( 
         tmpss2datbuffers + pronr2 * CUSS_ALIGNED_N_DIFF_TOTAL_SCORES +
             CUSS_N_DIFF_SCORES + (intscorescaled - CUSS_SCALED_SCORE_MIN),

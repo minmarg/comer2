@@ -23,7 +23,7 @@ public:
     mystring( char );
     ~mystring();
 
-    void            reserve( size_t size )  { reallocate( size ); }
+    void reserve( size_t size )  { reallocate( size ); }
 
     void move(mystring& str) {
         destroy();

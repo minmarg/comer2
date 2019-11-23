@@ -10,7 +10,9 @@
 #include "CuBatchScoreMatrix_com.h"
 
 //constant shift for the initial profile-profile substitution scoring function
-#define CONSTINITSHIFT  0.002f //0.0003f
+//#define CONSTINITSHIFT 0.002f //0.0003f
+#define CONSTINITSHIFT_MAPALN0  0.0003f
+#define CONSTINITSHIFT_MAPALN1  0.002f
 
 //device variable for testing
 extern __device__ unsigned long long d_testvar;
@@ -20,24 +22,28 @@ extern __device__ unsigned long long d_testvar;
 __global__ void CalcSM_Init_SMEMUnroll2x(
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
     uint querposoffset, uint bdb1posoffset, uint bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores, 
     CUBSM_TYPE* outmodscores );
 
 __global__ void CalcSMInitSMEMUnroll2(
     uint nqyposs, uint ndb1poss, uint ndbCposs, 
     size_t querposoffset, size_t bdb1posoffset, size_t bdbCposoffset,
-    CUBSM_TYPE* outscores, 
+    const CUBSM_TYPE CONSTINITSHIFT,
+    CUBSM_TYPE* outscores,
     CUBSM_TYPE* outmodscores );
 
 __global__ void CalcSMInitSMEM(
     uint nqyposs, uint ndb1poss, uint ndbCposs, 
     size_t querposoffset, size_t bdb1posoffset, size_t bdbCposoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores,
     CUBSM_TYPE* outmodscores );
 
 __global__ void CalcSMInit(
     uint nqyposs, uint ndb1poss, uint ndbCposs, 
     size_t queroffset, size_t bdb1offset, size_t bdbCoffset,
+    const CUBSM_TYPE CONSTINITSHIFT,
     CUBSM_TYPE* outscores,
     CUBSM_TYPE* outmodscores );
 
@@ -63,6 +69,7 @@ void CalcInitScoreSMEMUnroll2x(
     const FPTYPE (* __restrict__ dbproCache)[SMINIT_2DCACHE_DIM],
     const FPTYPE (* __restrict__ qrposCache)[SMINIT_2DCACHE_DIM],
     const FPTYPE (* __restrict__ dbposCache)[SMINIT_2DCACHE_DIM],
+    const CUBSM_TYPE CONSTINITSHIFT,
     bool col2cond,
     float& score1, float& score2 )
 {

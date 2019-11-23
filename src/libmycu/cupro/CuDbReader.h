@@ -84,10 +84,20 @@ public:
     size_t          GetNoSequences() const { return no_sequences_; }
     uint64_mt       GetDbSize() const { return db_size_; }
 
-protected:
+    size_t GetDbSizeInBytes() const {return db_size_bytes_;}
+
+    void ReadData( size_t filepos, void* dst, size_t count ) {
+        if( GetMapped())
+            ReadDataMapped( filepos, dst, count );
+        else
+            ReadDataDirect( filepos, dst, count );
+    }
+
     explicit CuDbReader();
 
+protected:
     void OpenText();//open database in text format
+    void OpenBin_v2_2();//open database v2.2 in binary format
     void OpenBin();//open database in binary format
 
     void SetOpenedFileType(Db::TFile which) {openedFile_ = which;}
@@ -156,13 +166,13 @@ protected:
 
     void SetDbPosMapped( const TCharStream* );
     void SetDbPosDirect( const TCharStream* );
+    void SeekDbDirect( size_t );
 
     void SetDbPosToOriginMapped();
     void SetDbPosToOriginDirect();
 
 
     void SetDbSizeInBytes( size_t value ) {db_size_bytes_ = value;}
-    size_t GetDbSizeInBytes() const {return db_size_bytes_;}
     size_t ObtainDbSizeInBytes(Db::TFile);
 
     size_t GetPageSize() const {return current_strdata_.pagesize_;}
@@ -181,6 +191,8 @@ protected:
     void UnmapFile(int);
 
     void ReadPage( TCharStream& );
+    void ReadDataMapped( size_t filepos, void* dst, size_t count );
+    void ReadDataDirect( size_t filepos, void* dst, size_t count );
 
 private:
     const char* dbname_;//database name
