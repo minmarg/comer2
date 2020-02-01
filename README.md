@@ -230,4 +230,9 @@ profile-profile alignments. BMC Bioinformatics 20, 419.
 Margelevicius, M. (2019) COMER2: GPU-accelerated sensitive and specific
 homology searches. Submitted.
 
+# Funding
+
+The work was supported by the European Regional Development Fund 
+[grant number 01.2.2-LMT-K-718-01-0028]
+
 Contact: <mindaugas.margelevicius@bti.vu.lt>
