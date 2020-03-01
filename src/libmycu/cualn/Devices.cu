@@ -35,15 +35,18 @@ void Devices::PrintDevices( FILE* fp )
         return;
     }
 
-    fprintf( fp, "%sDetected %d CUDA-capable device(s):%s%s", NL, deviceCount, NL,NL);
+    fprintf( fp, "%s%d CUDA-capable device(s) detected:%s%s", NL, deviceCount, NL,NL);
 
     for( int dev = 0; dev < deviceCount; dev++ ) {
         MYCUDACHECK( cudaSetDevice( dev ));
         cudaDeviceProp deviceProp;
+        size_t freemem, totalmem;
         MYCUDACHECK( cudaGetDeviceProperties( &deviceProp, dev ));
-        fprintf( fp, "Device id %d: \"%s\"%s%s", 
+        MYCUDACHECK( cudaMemGetInfo ( &freemem, &totalmem ));
+        fprintf( fp, "Device id %d: \"%s\"%s (free: %.1fGB total: %.1fGB)%s", 
             dev, deviceProp.name,
             (deviceProp.computeMode == cudaComputeModeProhibited)? " [Prohibited!]": "",
+            (float)freemem/(float)ONEG, (float)totalmem/(float)ONEG,
             NL);
     }
 
@@ -231,8 +234,10 @@ bool Devices::RegisterDeviceProperties( int devid, ssize_t maxmem, bool checkdup
     }
 
     cudaDeviceProp deviceProp;
+    size_t freemem, totalmem;
     MYCUDACHECK( cudaSetDevice( devid ));
     MYCUDACHECK( cudaGetDeviceProperties( &deviceProp, devid ));
+    MYCUDACHECK( cudaMemGetInfo ( &freemem, &totalmem ));
     //
     if( deviceProp.computeMode == cudaComputeModeProhibited )
         return false;
@@ -244,18 +249,34 @@ bool Devices::RegisterDeviceProperties( int devid, ssize_t maxmem, bool checkdup
     dprop->ccmajor_ = deviceProp.major;
     dprop->ccminor_ = deviceProp.minor;
     dprop->totmem_ = deviceProp.totalGlobalMem;
-    dprop->reqmem_ = dprop->totmem_;
-    if( 0 < maxmem && maxmem < (ssize_t)dprop->totmem_ )
-        dprop->reqmem_ = maxmem;
-    if( dprop->totmem_>>20 >= 16000UL ) {
-        if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE_16G > dprop->totmem_)
-            dprop->reqmem_ = dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE_16G;
+    //NOTE: better memory size determination:
+    if( freemem <= DeviceProperties::DEVMEMORYRESERVE )
+        throw MYRUNTIME_ERROR("Devices::GetDeviceProperties: Not enough memory.");
+    dprop->reqmem_ = freemem - DeviceProperties::DEVMEMORYRESERVE;
+    if( 0 < maxmem ) {
+        if( maxmem <= (ssize_t)dprop->reqmem_ )
+            dprop->reqmem_ = maxmem;
+        else {
+            char msgbuf[KBYTE];
+            sprintf(msgbuf,"Device %d: free memory < requested amount: %zu(MB) < %zd(MB).",
+                dprop->devid_, dprop->reqmem_>>20, maxmem>>20);
+            warning(msgbuf);
+        }
     }
-    else {
-        if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE > dprop->totmem_)
-            dprop->reqmem_ = (dprop->totmem_ <= DeviceProperties::DEVMINMEMORYRESERVE)?
-                dprop->totmem_: dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE;
-    }
+//     //{{NOTE: previous
+//     dprop->reqmem_ = dprop->totmem_;
+//     if( 0 < maxmem && maxmem < (ssize_t)dprop->totmem_ )
+//         dprop->reqmem_ = maxmem;
+//     if( dprop->totmem_>>20 >= 16000UL ) {
+//         if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE_16G > dprop->totmem_)
+//             dprop->reqmem_ = dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE_16G;
+//     }
+//     else {
+//         if( dprop->reqmem_ + DeviceProperties::DEVMINMEMORYRESERVE > dprop->totmem_)
+//             dprop->reqmem_ = (dprop->totmem_ <= DeviceProperties::DEVMINMEMORYRESERVE)?
+//                 dprop->totmem_: dprop->totmem_ - DeviceProperties::DEVMINMEMORYRESERVE;
+//     }
+//     //}}
     dprop->textureAlignment_ = deviceProp.textureAlignment;
     dprop->maxTexture1DLinear_ = deviceProp.maxTexture1DLinear;
     dprop->maxGridSize_[0] = deviceProp.maxGridSize[0];

@@ -24,21 +24,29 @@ inline __host__ __device__ void mycudaCheck(
     const char* file, unsigned int line, const char* func )
 {
     if( err != cudaSuccess ) {
+        const char* sub = DIRSEPSTR "src" DIRSEPSTR;
+        const char* p = file;
+        int i = 0;
+        for(; p && *p; p += (i? i: 1)) {
+            for(i = 0; p[i] && sub[i] && p[i] == sub[i]; i++);
+            if(!sub[i] || !p[i])
+                break;
+        }
 #if defined(__CUDA_ARCH__)
         printf( "CUDA error %s \"%s\"%s"
                 "    (File: %s; Line: %u; Function: %s)%s",
                 cudaGetErrorName(err), cudaGetErrorString(err), NL, 
-                file, line, func, NL );
+                sub[i]? file: p+1, line, func, NL );
         //__syncthreads();
         asm("trap;");
 #else
         fprintf( stderr, "CUDA error %s \"%s\"%s"
                 "    (File: %s; Line: %u; Function: %s)%s",
                 cudaGetErrorName(err), cudaGetErrorString(err), NL, 
-                file, line, func, NL );
+                sub[i]? file: p+1, line, func, NL );
         throw myruntime_error(
             mystring("CUDA error ")+cudaGetErrorName(err)+" \""+cudaGetErrorString(err)+"\"", 
-                file, line, func );
+                sub[i]? file: p+1, line, func );
 #endif
     }
 }

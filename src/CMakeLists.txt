@@ -53,6 +53,8 @@ add_subdirectory (libHDP)
 add_subdirectory (libpro)
 add_subdirectory (libmycu)
 ## execs...
+add_subdirectory (makepro_and_run_comer)
+add_subdirectory (comer2msa)
 add_subdirectory (blast2fa)
 add_subdirectory (makepro)
 add_subdirectory (makedb)

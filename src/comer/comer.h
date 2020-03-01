@@ -32,8 +32,8 @@ Usage:\n\
 \n\
 Alignment search options:\n\
 -i <query_profiles>         <> (stacked) profile(s) made by makepro or profile\n\
-                            database (use extension .prd) made by makedb.\n\
--d <database_name>          Database made by makedb from this package.\n\
+                            database (use extension .prd) made by makedb+db2bin.\n\
+-d <database_name>          Database made by makedb+db2bin from this package.\n\
 -o <output_directory>       Directory of output files for each query.\n\
 -p <options_file>           Input file of options;\n\
                             By default, the options file in the installation\n\
@@ -51,6 +51,8 @@ Parallel run options:\n\
 --dev-mem=<megabytes>       Maximum amount of GPU memory (MB) that can be used.\n\
                             All memory is used if a GPU has less than the specified\n\
                             amount of memory.\n\
+                            NOTE: For a small number of queries, using a moderate\n\
+                            amount of memory (~4GB) is more efficient.\n\
                         Default=[all memory of GPU(s)]\n\
 --dev-ngrids=<count>        Number of grids [1,20] to launch on each GPU.\n\
  *EXPERIMENTAL option*      A grid represents a logically independent computation unit\n\
@@ -87,6 +89,13 @@ Other options:\n\
                             and exit.\n\
 -v [<level_number>]         Verbose mode.\n\
 -h                          This text.\n\
+\n\
+\n\
+Examples:\n\
+<> -i myprofile.pro -d mydb -o my_output_directory (database used without extension)\n\
+<> -i mystackedprofiles.pro -d mydb -o my_out_dir (multiple stacked query profiles)\n\
+<> -i mydb1 -d mydb2 -o my_output_directory (query database searched against mydb2)\n\
+<> -i mydb1.prd -d mydb2 -o my_out_dir -p my_search_options.txt\n\
 \n\
 ";
 

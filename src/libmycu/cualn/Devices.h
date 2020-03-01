@@ -26,8 +26,11 @@ extern Devices DEVPROPs;
 //
 struct DeviceProperties {
     enum {
-        DEVMINMEMORYRESERVE = 200 * ONEM,
-        DEVMINMEMORYRESERVE_16G = 548 * ONEM
+        DEVMEMORYRESERVE = 32 * ONEM
+//         //{{NOTE: previous
+//         DEVMINMEMORYRESERVE = 200 * ONEM,
+//         DEVMINMEMORYRESERVE_16G = 548 * ONEM
+//         //}}
     };
     DeviceProperties():
         shdcnt_(new TSCounterVar),

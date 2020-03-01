@@ -2,3 +2,4 @@
 and algorithms to provide extremely fast computation on GPU
 2.02, November 2019  *  A more efficient computational load distribution,
 practically removing stalls arising due to waiting for data from the CPU to arrive
+
