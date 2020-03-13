@@ -39,13 +39,13 @@ Institute of Biotechnology, Vilnius University
 
    The package is available at:
 
-   [http://comer2.sourceforge.net](http://comer2.sourceforge.net)
+   [http://comer2.sourceforge.net](http://comer2.sourceforge.net) (profile databases are available there)
 
    [https://github.com/minmarg/comer2](https://github.com/minmarg/comer2)
 
    The Docker image will be available at:
 
-   https://hub.docker.com/r/minmar/comer2
+   https:\//hub.docker.com/r/minmar/comer2
 
 # Structure of the Package
 
@@ -227,12 +227,14 @@ homology search with COMER. Bioinformatics 34(12), 2037-2045.
 Margelevicius, M. (2019) Estimating statistical significance of local protein
 profile-profile alignments. BMC Bioinformatics 20, 419.
 
-Margelevicius, M. (2019) COMER2: GPU-accelerated sensitive and specific
-homology searches. Submitted.
+Margelevicius, M. (2020) COMER2: GPU-accelerated sensitive and specific
+homology searches. Bioinformatics, doi:10.1093/bioinformatics/btaa185.
 
 # Funding
 
 The work was supported by the European Regional Development Fund 
 [grant number 01.2.2-LMT-K-718-01-0028]
+
+---
 
 Contact: <mindaugas.margelevicius@bti.vu.lt>
