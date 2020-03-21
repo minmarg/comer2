@@ -82,6 +82,7 @@ DEFINEOPTION( DSCWIDTH, int, 60, value>=40 && value<=100000);
 DEFINEOPTION( ALNWIDTH, int, 60, value>=20 && value<=100000);
 
 // Profile construction options
+DEFINEOPTION( X_UNINF, int, 1, value==0 || value==1 );
 DEFINEOPTION( IDENTITY, int, 90, value>=1 && value<=100 )
 DEFINEOPTION( SHOWCMD, int, 0, value==0 || value==1 );
 
@@ -157,6 +158,7 @@ static void PrivRead()
     ReadDSCWIDTH();
     ReadALNWIDTH();
 
+    ReadX_UNINF();
     ReadIDENTITY();
     ReadSHOWCMD();
 

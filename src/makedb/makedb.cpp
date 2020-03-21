@@ -12,6 +12,7 @@
 
 #include "liblib/msg.h"
 #include "liblib/mygetopt.h"
+#include "incconf/localconfig.h"
 #include "libpro/srcpro/MOptions.h"
 #include "libpro/srcpro/datapro.h"
 #include "libpro/srcpro/SEGProfile.h"
@@ -27,6 +28,7 @@ int main( int argc, char *argv[] )
     mystring        myoptarg;
     mystring        output;
     mystring        directory;
+    mystring        optfile;
     mystring        strmaxopenfiles;
     mystring        segwindow;
     mystring        seglowent;
@@ -46,6 +48,7 @@ int main( int argc, char *argv[] )
     static struct myoption long_options[] = {
         {"d", my_required_argument, 'd'},
         {"o", my_required_argument, 'o'},
+        {"p", my_required_argument, 'p'},
         {"n", my_required_argument, 'n'},
         //
         {"U", my_no_argument,       'U'},
@@ -75,6 +78,7 @@ int main( int argc, char *argv[] )
                     case 'v':   suppress = false; break;
                     case 'd':   directory = myoptarg; break;
                     case 'o':   output = myoptarg; break;
+                    case 'p':   optfile = myoptarg; break;
                     case 'n':   strmaxopenfiles = myoptarg; break;
                     case 'U':   usingseg = true; break;
                     case 'w':   segwindow = myoptarg; usingseg = true; break;
@@ -94,6 +98,27 @@ int main( int argc, char *argv[] )
     }
 
     SetVerboseMode( !suppress );
+
+
+
+    mystring insoptfile = GetFullOptionsFilename();
+    mystring altinsoptfile =
+                        mystring( my_dirname( argv[0])) + DIRSEP +
+                        UPDIR + DIRSEP +
+                        GetParamDirectory() + DIRSEP +
+                        GetOptionsFilename();
+
+    if( !file_exists( insoptfile.c_str()))
+        insoptfile = altinsoptfile;
+
+    if( !optfile.empty())
+        insoptfile = optfile;
+
+    TRY
+        MOptions::Read( insoptfile.c_str());
+    CATCH_ERROR_RETURN(;);
+
+
 
     char*   p;
     float   tmpval;
@@ -208,6 +233,7 @@ int main( int argc, char *argv[] )
             message( strbuf );
         }
 
+        db->SetOptionsSpecified( !optfile.empty());
         db->Make();
 
     CATCH_ERROR_RETURN(if(db) delete db);

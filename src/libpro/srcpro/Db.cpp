@@ -58,6 +58,8 @@ Db::Db( const char* name/*, int fstype */)
     nextsym_( 0 ),
     name_buffer_( NULL ),
 
+    optionsspec_(false),
+
     usingseg_( false ),
     segwinlen_( 0 ),
     seglowentropy_( -1.0f ),
@@ -90,6 +92,8 @@ Db::Db( const char* output, const char* directory/*, int fstype */)
     db_size_( 0 ),
     nextsym_( 0 ),
     name_buffer_( NULL ),
+
+    optionsspec_(false),
 
     usingseg_( false ),
     segwinlen_( 0 ),
@@ -124,6 +128,8 @@ Db::Db( const char* output, char* arguments[], int no_args/*, int fstype */)
     nextsym_( 0 ),
     name_buffer_( NULL ),
 
+    optionsspec_(false),
+
     usingseg_( false ),
     segwinlen_( 0 ),
     seglowentropy_( -1.0f ),
@@ -154,6 +160,8 @@ Db::Db(/* int fstype */)
     db_size_( 0 ),
     nextsym_( 0 ),
     name_buffer_( NULL ),
+
+    optionsspec_(false),
 
     usingseg_( false ),
     segwinlen_( 0 ),
@@ -546,7 +554,7 @@ void Db::ProcessInput( PMETHOD processing_method, void* args )
 inline
 bool Db::PreprocessNeeded() const
 {
-    return GetUsingSeg();
+    return GetUsingSeg() || GetOptionsSpecified();
 }
 // PreprocessProfile: apply SEG algorithm to the profile if SEG is in use
 //

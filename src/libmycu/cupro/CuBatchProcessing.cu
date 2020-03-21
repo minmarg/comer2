@@ -429,6 +429,7 @@ void CuBatchProcessing::BatchProcessScoreMatrixDevice(
 
         cbss_->CalculateAlnStatisticsDevice(
             streamproc,
+            dmem_->GetXUninformative(),
             ndb1pros,
             ndbCpros,
             ndb1prosOmtd,

@@ -27,7 +27,7 @@ using namespace CLOptions;
   }
 
 // -------------------------------------------------------------------------
-// command-line options
+// command-line options for comer
 //
 CLDEFINEASSIGNMENT( DEV_N, mystring, "1", 1 )
 CLDEFINEASSIGNMENT( DEV_MEM, int, -1, value>=100 && value<=1000000 )
@@ -37,3 +37,11 @@ CLDEFINEASSIGNMENT( DEV_PASS2MEMP, int, 10, value>=1 && value<=100 )
 CLDEFINEASSIGNMENT( IO_NBUFFERS, int, 4, value>=1 && value<=10 );
 CLDEFINEASSIGNMENT( IO_FILEMAP, int, 0, value==0 || value==1 );
 CLDEFINEASSIGNMENT( IO_UNPINNED, int, 0, value==0 || value==1 );
+
+// command-line options for makecov
+//
+CLDEFINEASSIGNMENT( XCOV_USEEXTENTS, int, 0, value==0 || value==1 );
+CLDEFINEASSIGNMENT( XCOV_MIXTRGFRQS, int, 0, value==0 || value==1 );
+CLDEFINEASSIGNMENT( XCOV_CORR, int, 0, value==0 || value==1 );
+CLDEFINEASSIGNMENT( XCOV_SCALEWGTS, int, 0, value==0 || value==1 );
+CLDEFINEASSIGNMENT( XCOV_MI, int, 0, value==0 || value==1 );

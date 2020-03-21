@@ -16,6 +16,7 @@
 // dynamic parallelism
 
 __global__ void CalcStatisticsDynPlm(
+    bool Xuninf,
     uint ndb1pros,
     uint ndb1prosOmtd, uint ndbCprosOmtd,
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,

@@ -86,11 +86,13 @@ CuDeviceMemory::CuDeviceMemory(
         DeviceProperties dprop, 
         bool hdp1scoresinuse,
         bool mapalninuse,
+        bool Xuninf,
         size_t deviceallocsize,
         int nareas )
 :
     hdp1scoresinuse_( hdp1scoresinuse ),
     mapalninuse_( mapalninuse ),
+    Xuninf_( Xuninf ),
     deviceallocsize_( deviceallocsize ),
     nareas_(nareas),
     curmaxdbpos_( 0UL ),

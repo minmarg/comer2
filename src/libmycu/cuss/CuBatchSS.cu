@@ -62,6 +62,7 @@ CuBatchSS::~CuBatchSS()
 //
 void CuBatchSS::CalculateAlnStatisticsDevice(
     cudaStream_t streamproc,
+    bool Xuninf,
     size_t ndb1pros,
     size_t ndbCpros,
     size_t ndb1prosOmtd,
@@ -90,6 +91,7 @@ void CuBatchSS::CalculateAlnStatisticsDevice(
     MYMSG( "CuBatchSS::CalculateAlnStatisticsDevice", 4 );
     CalculateStatisticsDeviceHelper(
         streamproc,
+        Xuninf,
         ndb1pros, ndbCpros,
         ndb1prosOmtd, ndbCprosOmtd,
         nqyposs, ndb1poss, ndbCposs, dbxpad,
@@ -113,6 +115,7 @@ void CuBatchSS::CalculateAlnStatisticsDevice(
 // significantly similar profile-profile pairs representing part of query 
 // and database profiles on device;
 // streamproc, CUDA stream for computations;
+// Xuninf, flag indicating whether masked positions are uninformative;
 // ndb1pros, number of profiles over the db1 positions passed;
 // ndbCpros, number of profiles over the complementary dbC positions;
 // ndb1prosOmtd, number of files missed up to the beginning of db1 profiles;
@@ -145,6 +148,7 @@ void CuBatchSS::CalculateAlnStatisticsDevice(
 //
 void CuBatchSS::CalculateStatisticsDeviceHelper(
     cudaStream_t streamproc,
+    bool Xuninf,
     size_t ndb1pros,
     size_t /*ndbCpros*/,
     size_t ndb1prosOmtd,
@@ -208,6 +212,7 @@ void CuBatchSS::CalculateStatisticsDeviceHelper(
         MYMSGENDl
 
         CalcStatisticsDynPlm<<<nblcks,nthrds,0,streamproc>>>( 
+            Xuninf,
             (uint)ndb1pros,
             (uint)ndb1prosOmtd, (uint)ndbCprosOmtd,
             (uint)nqyposs, (uint)ndb1poss, (uint)ndbCposs, (uint)dbxpad,

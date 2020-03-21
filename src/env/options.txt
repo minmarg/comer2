@@ -23,6 +23,9 @@ ALNWIDTH = 60
 
 ## Profile construction options:
 ##
+#   Make profile positions masked with Xs               (0|1)
+#   uninformative
+X_UNINF = 1
 #   Ignore sequences in alignment file with this or     [1-100]
 #   higher level of sequence identity
 IDENTITY = 90

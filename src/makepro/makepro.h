@@ -26,8 +26,8 @@ Profile construction options:\n\
 \n\
 -i <input>      [Filename]  Input multiple alignment file.\n\
 -o <output>     [Filename]  Output profile.\n\
--p <options>    [Filename]  Input file of options;\n\
-                            By default, the options file in the installation\n\
+-p <options>    [Filename]  Input file of options.\n\
+                        By default, the options file in the installation\n\
                             directory is used.\n\
 \n\
 Other options:\n\

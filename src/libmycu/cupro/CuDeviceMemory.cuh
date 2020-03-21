@@ -101,7 +101,8 @@ public:
     CuDeviceMemory(
         DeviceProperties dprop, 
         bool hdp1scoresinuse, 
-        bool mapalninuse, 
+        bool mapalninuse,
+        bool Xuninf,
         size_t deviceallocsize,
         int nareas );
 
@@ -137,6 +138,7 @@ public:
 
     bool GetHDP1ScoresInUse() const { return hdp1scoresinuse_; }
     bool GetMAPAlnInUse() const { return mapalninuse_; }
+    bool GetXUninformative() const { return Xuninf_; }
     bool GetModScoreMatrixInUse() const { 
         return MOptions::GetSSSWGT() > 0.0f || MOptions::GetCVSWGT() > 0.0f;
     }
@@ -282,6 +284,7 @@ protected:
 private:
     bool hdp1scoresinuse_;//whether HDP1 scores are being used
     bool mapalninuse_;//whether MAP alignment calculation is being used
+    bool Xuninf_;//whether positions masked with Xs are to be treated as uninformative
     size_t querylength_;//length to adjust memory configuration to
     //{{attributes required for a device to process serialized data
     SerializedScoresAttr ssssattr_;//attributes of sereliazed sss scores

@@ -28,6 +28,12 @@ class PMProfileModel;
 class PMTransModel;
 }
 
+struct MyMSAStrDestroyer {
+    void operator()(char* p) const {
+        std::free(p);
+    };
+};
+
 // _________________________________________________________________________
 // CLASS MSA
 // Multiple sequence alignment for profile model inference
@@ -40,6 +46,7 @@ public:
 
     void    PlainPreprocess();
     void    SelectSequences();
+    void    CalculateXCovMatrices(const char* filename);
     void    ConstructProfile();
 
     size_t  GetSize() const { return length_; };
@@ -165,6 +172,8 @@ protected:
     void    CalculateEffNoSequences();
 
     void    ComputeTargetTransFrequencies();
+
+    void    CalculateAndPrintXCovMatrices(const char* filename);
 
     void    ComputeTargetFrequenciesMDL();
     void    ComputeTargetFrequenciesMDLVar();

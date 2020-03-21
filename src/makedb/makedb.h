@@ -10,8 +10,9 @@
 
 // Version history:
 // 2.01   Initial project 2
+// 2.02   Changes related to changes in binary format and masking options
 
-static const char*  version = "2.01";
+static const char*  version = "2.02";
 static const char*  verdate = "";
 
 static const char*  makeinst = "\n\
@@ -19,7 +20,7 @@ static const char*  makeinst = "\n\
 \n\
 Make profile database from input files in the given directory or listed profiles or\n\
 COMER database files (with the .prd extension).\n\
-(C)2013-2019 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
+(C)2013-2020 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
 \n\
 \n\
 Usage:\n\
@@ -29,6 +30,9 @@ Make options:\n\
 \n\
 -o <output_name>            Name of output database.\n\
 -d <directory>              Directory of files to read.\n\
+-p <options_filename>       Input file of options.\n\
+                        By default, the options file in the installation\n\
+                            directory is used.\n\
 -n <number_of_open_files>   Maximum number of open input files.\n\
                         Default=510\n\
 \n\

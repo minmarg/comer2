@@ -1580,6 +1580,8 @@ void BinaryWriteProfile_v2_2(
     extspsl::Pslvector spvals;
     extspsl::Ivector intvals;
     extspsl::Pslvector uninfctxvec(pmv2DNoCVEls);//uninformative context vector
+    const int Xuninf = MOptions::GetX_UNINF();
+    constexpr bool mildmasking = true;//use mild masking
     const float*    ppprobs;//posterior predictive probabilities
     const int*      pppndxs;//indices of posteriors
     int             noppps;//number of p.p.probability values
@@ -1691,7 +1693,7 @@ void BinaryWriteProfile_v2_2(
             res = pssm.GetResidueAt(m);
             if( res == GAP )
                 continue;//omit unused positions and gaps
-            lpprb = pssm.values_[m][r];
+            lpprb = (Xuninf && res == X && !mildmasking)? pssm.backprobs_[r]: pssm.values_[m][r];
             spvals.Push(lpprb);
             bytes += sizeof(lpprb);
         }
@@ -1715,7 +1717,7 @@ void BinaryWriteProfile_v2_2(
             res = pssm.GetResidueAt(m);
             if( res == GAP )
                 continue;//omit unused positions and gaps
-            if( pssm.GetCtxVecSet())
+            if( pssm.GetCtxVecSet() && !(Xuninf && res == X))
                 lpprb = pssm.GetCtxVecAt(m)? 
                     pssm.GetCtxVecAt(m)[t]: uninfctxvec.GetValueAt(t);//HUGE_VALF;
             else
@@ -1741,7 +1743,7 @@ void BinaryWriteProfile_v2_2(
         res = pssm.GetResidueAt(m);
         if( res == GAP )
             continue;//omit unused positions and gaps
-        if( pssm.GetCtxVecSet())
+        if( pssm.GetCtxVecSet() && !(Xuninf && res == X))
             lpprb = pssm.GetCtxVecLpprobAt(m);
         else
             lpprb = 0.0f;//HUGE_VALF;
@@ -1765,7 +1767,7 @@ void BinaryWriteProfile_v2_2(
         res = pssm.GetResidueAt(m);
         if( res == GAP )
             continue;//omit unused positions and gaps
-        if( pssm.GetCtxVecSet())
+        if( pssm.GetCtxVecSet() && !(Xuninf && res == X))
             lpprb = pssm.GetCtxVecNorm2At(m);
         else
             lpprb = 0.0f;//HUGE_VALF;
@@ -1792,7 +1794,7 @@ void BinaryWriteProfile_v2_2(
             res = pssm.GetResidueAt(m);
             if( res == GAP )
                 continue;//omit unused positions and gaps
-            if( pssm.GetSSSSet())
+            if( pssm.GetSSSSet() && !(Xuninf && res == X))
                 lpprb = pssm.sssprob_[m]? pssm.sssprob_[m][t]: 0.0f;//HUGE_VALF;
             else
                 lpprb = 0.0f;//so that SSS inf vector is uninformative//(HUGE_VALF;)
@@ -1830,7 +1832,10 @@ void BinaryWriteProfile_v2_2(
             sprintf(strbuf, "BinaryWriteProfile_v2_2: Null HDP1 cluster membership probabilities at %d.", m);
             throw MYRUNTIME_ERROR(strbuf);
         }
-        spvals.Push(ppprobs[0]);
+        if(!(Xuninf && res == X && !mildmasking))
+            spvals.Push(ppprobs[0]);
+        else
+            spvals.Push(0.0f);//make uninformative
         bytes += sizeof(ppprobs[0]);
     }
     fp.write(reinterpret_cast<const char*>(spvals.GetVector()),bytes);
@@ -1855,7 +1860,10 @@ void BinaryWriteProfile_v2_2(
             sprintf(strbuf, "BinaryWriteProfile_v2_2: Null HDP1 cluster indices at %d.", m);
             throw MYRUNTIME_ERROR(strbuf);
         }
-        intvals.Push(pppndxs[0]);
+        if(!(Xuninf && res == X && !mildmasking))
+            intvals.Push(pppndxs[0]);
+        else
+            intvals.Push(-1);//make uninformative
         bytes += sizeof(pppndxs[0]);
     }
     fp.write(reinterpret_cast<const char*>(intvals.GetVector()),bytes);
@@ -1968,6 +1976,9 @@ void BinaryWriteProfile(
 
     const int noress = NUMAA;//PMProfileModelBase::PVDIM;
 
+    extspsl::Pslvector uninfctxvec(pmv2DNoCVEls);//uninformative context vector
+    const int Xuninf = MOptions::GetX_UNINF();
+    constexpr bool mildmasking = true;//use mild masking
     mystring        sequence;
     float           bppprob;//background posterior predicitive
     const float*    ppprobs;//posterior predictive probabilities
@@ -1978,9 +1989,14 @@ void BinaryWriteProfile(
     const float*    ctxvec;//context vector
     int             vsize = pssm.GetCtxVecSize();//size of vector
     std::streamoff fppos = -1, fplst = -1;
+    const float prob0 = 0.0f;
+    const int ndxneg = -1;
     const char ch0 = 0;
     char res;
     int m, r, t;
+
+    //init each entry to ensure CVS2S score==0 when CVS are not used
+    uninfctxvec.AssignTo(0.17302947f);
 
     if((fppos = fp.tellp()) == (std::streamoff)-1 || fp.fail())
         throw MYRUNTIME_ERROR("BinaryWriteProfile: Failed to determine file position.");
@@ -2054,8 +2070,13 @@ void BinaryWriteProfile(
             continue;
 
         //target probabilities:
-        for( r = 0; r < noress; r++ )
-            fp.write(reinterpret_cast<const char*>(pssm.values_[m]+r),sizeof(pssm.values_[m][0]));
+        if(!(Xuninf && res == X && !mildmasking)) {
+            for( r = 0; r < noress; r++ )
+                fp.write(reinterpret_cast<const char*>(pssm.values_[m]+r),sizeof(pssm.values_[m][0]));
+        } else {
+            for( r = 0; r < noress; r++ )
+                fp.write(reinterpret_cast<const char*>(pssm.backprobs_+r),sizeof(pssm.backprobs_[0]));
+        }
 
         //transition probabilities:
         for( t = 0; t < P_NSTATES; t++ ) {
@@ -2069,10 +2090,17 @@ void BinaryWriteProfile(
             throw MYRUNTIME_ERROR("BinaryWriteProfile: Write to file failed.");
 
         //{{HDP1
-        bppprob = pssm.GetBckPPProbAt(m);
-        ppprobs = pssm.GetPPProbsAt(m);
-        pppndxs = pssm.GetPPPIndsAt(m);
-        noppps = (int)pssm.GetNoPPProbsAt(m);
+        if(!(Xuninf && res == X && !mildmasking)) {
+            bppprob = pssm.GetBckPPProbAt(m);
+            ppprobs = pssm.GetPPProbsAt(m);
+            pppndxs = pssm.GetPPPIndsAt(m);
+            noppps = (int)pssm.GetNoPPProbsAt(m);
+        } else {
+            bppprob = 0.0f;
+            ppprobs = &prob0;
+            pppndxs = &ndxneg;
+            noppps = 1;
+        }
 
         //HDP1: background probability:
         fp.write(reinterpret_cast<const char*>(&bppprob),sizeof(bppprob));
@@ -2101,10 +2129,17 @@ void BinaryWriteProfile(
 
         if( pssm.GetctPsSet()) {
             //HDP ctx
-            bppprob = pssm.GetctBckPPProbAt(m);
-            ppprobs = pssm.GetctPPProbsAt(m);
-            pppndxs = pssm.GetctPPPIndsAt(m);
-            noppps = (int)pssm.GetNoctPPProbsAt(m);
+            if(!(Xuninf && res == X && !mildmasking)) {
+                bppprob = pssm.GetctBckPPProbAt(m);
+                ppprobs = pssm.GetctPPProbsAt(m);
+                pppndxs = pssm.GetctPPPIndsAt(m);
+                noppps = (int)pssm.GetNoctPPProbsAt(m);
+            } else {
+                bppprob = 0.0f;
+                ppprobs = &prob0;
+                pppndxs = &ndxneg;
+                noppps = 1;
+            }
 
             fp.write(patstrCT,strlen(patstrCT));
             //HDP ct: number of components:
@@ -2134,9 +2169,15 @@ void BinaryWriteProfile(
 
         //{{ context vector
         if( pssm.GetCtxVecSet()) {
-            norm2 = pssm.GetCtxVecNorm2At(m);
-            lpprb = pssm.GetCtxVecLpprobAt(m);
-            ctxvec = pssm.GetCtxVecAt(m);
+            if(!(Xuninf && res == X)) {
+                norm2 = pssm.GetCtxVecNorm2At(m);
+                lpprb = pssm.GetCtxVecLpprobAt(m);
+                ctxvec = pssm.GetCtxVecAt(m);
+            } else {
+                norm2 = 0.0f;
+                lpprb = 0.0f;
+                ctxvec = uninfctxvec.GetVector();
+            }
 
             fp.write(patstrCV,strlen(patstrCV));
             //CV: probability:
@@ -2170,8 +2211,13 @@ void BinaryWriteProfile(
             fp.write(&res,1);
             //NOTE: always use SP3 format
             //if( pssm.GetSSSP3()) {
-                for( t = 0; t < SS_NSTATES; t++ )
-                    fp.write(reinterpret_cast<const char*>(pssm.sssprob_[m]+t),sizeof(pssm.sssprob_[m][0]));
+                if(!(Xuninf && res == X)) {
+                    for( t = 0; t < SS_NSTATES; t++ )
+                        fp.write(reinterpret_cast<const char*>(pssm.sssprob_[m]+t),sizeof(pssm.sssprob_[m][0]));
+                } else {
+                    for( t = 0; t < SS_NSTATES; t++ )
+                        fp.write(reinterpret_cast<const char*>(&prob0),sizeof(prob0));
+                }
             //}
 
             if(fp.bad())
@@ -2263,6 +2309,9 @@ void TextWriteProfileCondensed(
     const int noress = NUMAA;//PMProfileModelBase::PVDIM;
     const int showcmdline = MOptions::GetSHOWCMD();
 
+    extspsl::Pslvector uninfctxvec(pmv2DNoCVEls);//uninformative context vector
+    const int Xuninf = MOptions::GetX_UNINF();
+    constexpr bool mildmasking = true;//use mild masking
     float           bppprob;//background posterior predicitive
     const float*    ppprobs;//posterior predictive probabilities
     const int*      pppndxs;//indices of posteriors
@@ -2271,8 +2320,13 @@ void TextWriteProfileCondensed(
     float           lpprb;//log of context vector's prior probability
     const float*    ctxvec;//context vector
     int             vsize = pssm.GetCtxVecSize();//size of vector
+    const float prob0 = 0.0f;
+    const int ndxneg = -1;
     char    res;
     int     m, r, t, n = 0;
+
+    //init each entry to ensure CVS2S score==0 when CVS are not used
+    uninfctxvec.AssignTo(0.17302947f);
 
     fprintf( fp, "%s%s%s", patstrDATVER, PMProfileModel::dataversion, NL );
     fprintf( fp, "%s %s%s", patstrDESC, pssm.GetDescription()? pssm.GetDescription(): "", NL );
@@ -2317,8 +2371,13 @@ void TextWriteProfileCondensed(
 
         fprintf( fp, "%s%d %c", NL, ++n, DehashCode(pssm.GetResidueAt(m)));
 
-        for( r = 0; r < noress; r++ )
-            fprintf( fp, " %d", (int)rintf(scale*pssm.GetValueAt(m,r)));
+        if(!(Xuninf && res == X && !mildmasking)) {
+            for( r = 0; r < noress; r++ )
+                fprintf( fp, " %d", (int)rintf(scale*pssm.GetValueAt(m,r)));
+        } else {
+            for( r = 0; r < noress; r++ )
+                fprintf( fp, " %d", (int)rintf(scale*pssm.GetBackProbsAt(r)));
+        }
 
         fprintf( fp, "%s", NL);
 
@@ -2336,10 +2395,17 @@ void TextWriteProfileCondensed(
             fprintf( fp, " %d", (int)rintf(INTSCALE*pssm.GetMIDExpNoObservationsAt(m,t)));
 
         //{{HDP1
-        bppprob = pssm.GetBckPPProbAt(m);
-        ppprobs = pssm.GetPPProbsAt(m);
-        pppndxs = pssm.GetPPPIndsAt(m);
-        noppps = pssm.GetNoPPProbsAt(m);
+        if(!(Xuninf && res == X && !mildmasking)) {
+            bppprob = pssm.GetBckPPProbAt(m);
+            ppprobs = pssm.GetPPProbsAt(m);
+            pppndxs = pssm.GetPPPIndsAt(m);
+            noppps = (int)pssm.GetNoPPProbsAt(m);
+        } else {
+            bppprob = 0.0f;
+            ppprobs = &prob0;
+            pppndxs = &ndxneg;
+            noppps = 1;
+        }
 
         fprintf( fp, "%s", NL);
         fprintf( fp, " %d %d", (int)rintf(scale*bppprob), (int)noppps);
@@ -2362,10 +2428,17 @@ void TextWriteProfileCondensed(
 
         if( pssm.GetctPsSet()) {
             //HDP ctx
-            bppprob = pssm.GetctBckPPProbAt(m);
-            ppprobs = pssm.GetctPPProbsAt(m);
-            pppndxs = pssm.GetctPPPIndsAt(m);
-            noppps = pssm.GetNoctPPProbsAt(m);
+            if(!(Xuninf && res == X && !mildmasking)) {
+                bppprob = pssm.GetctBckPPProbAt(m);
+                ppprobs = pssm.GetctPPProbsAt(m);
+                pppndxs = pssm.GetctPPPIndsAt(m);
+                noppps = pssm.GetNoctPPProbsAt(m);
+            } else {
+                bppprob = 0.0f;
+                ppprobs = &prob0;
+                pppndxs = &ndxneg;
+                noppps = 1;
+            }
 
             fprintf( fp, "%s %s%d %d", NL, patstrCT, 
                      (int)noppps, (int)rintf(scale*bppprob));
@@ -2384,9 +2457,15 @@ void TextWriteProfileCondensed(
 
         //{{ context vector
         if( pssm.GetCtxVecSet()) {
-            norm2 = pssm.GetCtxVecNorm2At(m);
-            lpprb = pssm.GetCtxVecLpprobAt(m);
-            ctxvec = pssm.GetCtxVecAt(m);
+            if(!(Xuninf && res == X)) {
+                norm2 = pssm.GetCtxVecNorm2At(m);
+                lpprb = pssm.GetCtxVecLpprobAt(m);
+                ctxvec = pssm.GetCtxVecAt(m);
+            } else {
+                norm2 = 0.0f;
+                lpprb = 0.0f;
+                ctxvec = uninfctxvec.GetVector();
+            }
 
             fprintf( fp, "%s %s %d %d %d", NL, patstrCV,
                    (int)rintf(scale*lpprb), (int)rintf(scale*norm2), vsize );
@@ -2406,8 +2485,13 @@ void TextWriteProfileCondensed(
             //use floor in rounding SS state probability
             fprintf( fp, "%s %s%c", NL, patstrSS, DehashSSCode(pssm.GetSSStateAt(m)));
             if( pssm.GetSSSP3()) {
-                for( t = 0; t < SS_NSTATES; t++ )
-                    fprintf( fp, " %d", (int)(scale*pssm.GetSSStateProbAt(m,t)));
+                if(!(Xuninf && res == X)) {
+                    for( t = 0; t < SS_NSTATES; t++ )
+                        fprintf( fp, " %d", (int)(scale*pssm.GetSSStateProbAt(m,t)));
+                } else {
+                    for( t = 0; t < SS_NSTATES; t++ )
+                        fprintf( fp, " %d", 0);
+                }
             }
             else
                 fprintf( fp, " %d", (int)(scale*pssm.GetSSStateProbAt(m)));
@@ -2443,6 +2527,9 @@ void TextWriteProfile(
     const int noress = NUMAA;//PMProfileModelBase::PVDIM;
     const int showcmdline = MOptions::GetSHOWCMD();
 
+    extspsl::Pslvector uninfctxvec(pmv2DNoCVEls);//uninformative context vector
+    const int Xuninf = MOptions::GetX_UNINF();
+    constexpr bool mildmasking = true;//use mild masking
     float           bppprob;//background posterior predicitive
     const float*    ppprobs;//posterior predictive probabilities
     const int*      pppndxs;//indices of posteriors
@@ -2451,8 +2538,13 @@ void TextWriteProfile(
     float           lpprb;//log of context vector's prior probability
     const float*    ctxvec;//context vector
     int             vsize = pssm.GetCtxVecSize();//size of vector
+    const float prob0 = 0.0f;
+    const int ndxneg = -1;
     char    res;
     int     m, r, t, n = 0;
+
+    //init each entry to ensure CVS2S score==0 when CVS are not used
+    uninfctxvec.AssignTo(0.17302947f);
 
     fprintf( fp, "%s%s%s", patstrDATVER, PMProfileModel::dataversion, NL );
     fprintf( fp, "%-9s%s%s", patstrDESC, pssm.GetDescription()? pssm.GetDescription(): "", NL );
@@ -2506,8 +2598,13 @@ void TextWriteProfile(
 
         fprintf( fp, "%s%5d %c   ", NL, ++n, DehashCode( pssm.GetResidueAt( m )));
 
-        for( r = 0; r < noress; r++ )
-            fprintf( fp, "%7d ", ( int )rintf( scale * pssm.GetValueAt( m, r )));
+        if(!(Xuninf && res == X && !mildmasking)) {
+            for( r = 0; r < noress; r++ )
+                fprintf( fp, "%7d ", (int)rintf(scale * pssm.GetValueAt(m, r)));
+        } else {
+            for( r = 0; r < noress; r++ )
+                fprintf( fp, "%7d ", (int)rintf(scale * pssm.GetBackProbsAt(r)));
+        }
 
         fprintf( fp, "%s%10c", NL, 32 );
 
@@ -2535,10 +2632,17 @@ void TextWriteProfile(
 // //                 gaps.GetDeletesIntervalAt( m ));
 
         //{{HDP1
-        bppprob = pssm.GetBckPPProbAt(m);
-        ppprobs = pssm.GetPPProbsAt(m);
-        pppndxs = pssm.GetPPPIndsAt(m);
-        noppps = pssm.GetNoPPProbsAt(m);
+        if(!(Xuninf && res == X &&! mildmasking)) {
+            bppprob = pssm.GetBckPPProbAt(m);
+            ppprobs = pssm.GetPPProbsAt(m);
+            pppndxs = pssm.GetPPPIndsAt(m);
+            noppps = (int)pssm.GetNoPPProbsAt(m);
+        } else {
+            bppprob = 0.0f;
+            ppprobs = &prob0;
+            pppndxs = &ndxneg;
+            noppps = 1;
+        }
 
         fprintf( fp, "%s%10c", NL, 32 );
         fprintf( fp, "%7d %7d ", (int)rintf( scale*bppprob ), (int)noppps );
@@ -2561,10 +2665,17 @@ void TextWriteProfile(
 
         if( pssm.GetctPsSet()) {
             //HDP ctx
-            bppprob = pssm.GetctBckPPProbAt(m);
-            ppprobs = pssm.GetctPPProbsAt(m);
-            pppndxs = pssm.GetctPPPIndsAt(m);
-            noppps = pssm.GetNoctPPProbsAt(m);
+            if(!(Xuninf && res == X && !mildmasking)) {
+                bppprob = pssm.GetctBckPPProbAt(m);
+                ppprobs = pssm.GetctPPProbsAt(m);
+                pppndxs = pssm.GetctPPPIndsAt(m);
+                noppps = (int)pssm.GetNoctPPProbsAt(m);
+            } else {
+                bppprob = 0.0f;
+                ppprobs = &prob0;
+                pppndxs = &ndxneg;
+                noppps = 1;
+            }
 
             fprintf( fp, "%s%13c%s%d %7d ", NL, 32, patstrCT, 
                      (int)noppps, (int)rintf( scale*bppprob ));
@@ -2583,9 +2694,15 @@ void TextWriteProfile(
 
         //{{ context vector
         if( pssm.GetCtxVecSet()) {
-            norm2 = pssm.GetCtxVecNorm2At(m);
-            lpprb = pssm.GetCtxVecLpprobAt(m);
-            ctxvec = pssm.GetCtxVecAt(m);
+            if(!(Xuninf && res == X)) {
+                norm2 = pssm.GetCtxVecNorm2At(m);
+                lpprb = pssm.GetCtxVecLpprobAt(m);
+                ctxvec = pssm.GetCtxVecAt(m);
+            } else {
+                norm2 = 0.0f;
+                lpprb = 0.0f;
+                ctxvec = uninfctxvec.GetVector();
+            }
 
             fprintf( fp, "%s%14c%s %7d %7d %7d ", NL, 32, patstrCV,
                    (int)rintf( scale*lpprb ), (int)rintf( scale*norm2 ), vsize );
@@ -2605,8 +2722,13 @@ void TextWriteProfile(
             //use floor in rounding SS state probability
             fprintf( fp, "%s%13c%s%c", NL, 32, patstrSS, DehashSSCode( pssm.GetSSStateAt(m)));
             if( pssm.GetSSSP3()) {
-                for( t = 0; t < SS_NSTATES; t++ )
-                    fprintf( fp, " %7d", (int)( scale*pssm.GetSSStateProbAt(m,t)));
+                if(!(Xuninf && res == X)) {
+                    for( t = 0; t < SS_NSTATES; t++ )
+                        fprintf( fp, " %7d", (int)(scale*pssm.GetSSStateProbAt(m,t)));
+                } else {
+                    for( t = 0; t < SS_NSTATES; t++ )
+                        fprintf( fp, " %7d", 0);
+                }
             }
             else
                 fprintf( fp, " %7d", (int)( scale*pssm.GetSSStateProbAt(m)));

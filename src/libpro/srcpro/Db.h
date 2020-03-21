@@ -96,6 +96,9 @@ public:
     size_t          GetNoSequences() const      { return no_sequences_; }
     uint64_mt       GetDbSize() const           { return db_size_; }
 
+    bool GetOptionsSpecified() const { return optionsspec_; }
+    void SetOptionsSpecified(bool value) { optionsspec_ = value; }
+
     bool            GetUsingSeg() const         { return usingseg_; }
     size_t          GetSegWinLength() const     { return segwinlen_; }
     float           GetSegLowEntropy() const    { return seglowentropy_; }
@@ -186,6 +189,7 @@ private:
 
     char*               name_buffer_;       //auxiliary buffer
 
+    bool optionsspec_;//options file has been given
 
     bool                usingseg_;          //seg in use
     size_t              segwinlen_;         //seg window length

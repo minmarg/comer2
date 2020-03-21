@@ -115,6 +115,73 @@ __global__ void CalcScoreProbsDynPlmProfile(
 }
 
 // -------------------------------------------------------------------------
+// CalcScoreProbsXuninfDynPlmProfile: device code for calculating score 
+// probabilities for one given profile ignoring positions masked with Xs;
+// pronr2, profile serial number in phase 2;
+// nqyposs, number of query positions;
+// querposoffset, offset from the origin of the device buffers allocated for 
+// queries;
+// db1prolen, length of the (given) profile to be processed;
+// dbprodstCache, distance in positions to the original db profile;
+// dbfldsndx, index of the fields of the original db profile;
+// scores, calculated scores used as input;
+// tmpss2datbuffers, profile-specific temporary buffers for score 
+// probabilities;
+// NOTE: memory pointers should be aligned!
+// NOTE: due to atomic operations with GMEM, this function takes the 
+// most of the time to calculate statistical parameters;
+// 
+__global__ void CalcScoreProbsXuninfDynPlmProfile(
+    uint pronr2,
+    uint nqyposs, uint querposoffset,
+    uint db1prolen, uint dbprodstCache, uint dbfldsndx, 
+    int dbpos, int dblen,
+    CUBSM_TYPE* __restrict__ scores, 
+    float* __restrict__ tmpss2datbuffers )
+{
+    uint blockbeg_y = blockIdx.y * blockDim.y;
+    uint y = blockbeg_y + threadIdx.y;
+    uint x = blockIdx.x * blockDim.x + threadIdx.x;
+
+    __shared__ CHTYPE qraaCache[CUSS_2DCACHE_DIM],//cache for query amino acids
+            dbaaCache[CUSS_2DCACHE_DIM];//cache for amino acids of db profile
+
+    if( threadIdx.y < 1 ) {
+        if( blockbeg_y + threadIdx.x < nqyposs )
+            qraaCache[threadIdx.x] = 
+                ((CHTYPE*)(dc_pm2dvfields_[pmv2Daa]))[
+                    blockbeg_y + querposoffset + threadIdx.x
+                ];
+        if( x < db1prolen )
+            dbaaCache[threadIdx.x] = 
+                ((CHTYPE*)(dc_pm2dvfields_[dbfldsndx+pmv2Daa]))[dbprodstCache+x];
+    }
+
+    //sync threads before potential exit to avoid deadlock
+    __syncthreads();
+
+    //if outside the boundaries
+    if( db1prolen <= x || nqyposs <= y )
+        return;
+
+    if( qraaCache[threadIdx.y] == 'X' || dbaaCache[threadIdx.x] == 'X')
+        //masked positions do not contribute to statistics
+        return;
+
+    //coalescent read
+    CUBSM_TYPE score = scores[y * dblen + dbpos + x];
+
+    score = VerifyScore( score );
+
+    int intscorescaled = (int)rintf( score * CUSS_SCALE_FACTOR );
+
+    atomicAdd( 
+        tmpss2datbuffers + pronr2 * CUSS_ALIGNED_N_DIFF_TOTAL_SCORES +
+            CUSS_N_DIFF_SCORES + (intscorescaled - CUSS_SCALED_SCORE_MIN),
+        1.0f );
+}
+
+// -------------------------------------------------------------------------
 // CalcStatParamsDynPlmProfile: device code for calculating 
 // statistical parameters using the probabilities of scaled and unscaled 
 // scores; the normalization of probabilities is performed inline; 
@@ -612,6 +679,7 @@ __global__ void CalcSignificanceObsDynPlmProfile(
 // CalcStatisticsDynPlm: device code for calculating alignment statistics 
 // using dynamic parallelism;
 // NOTE: memory pointers should be aligned!
+// Xuninf, flag of treating masked positions as uninformative;
 // ssemodel, number of the model for statistical significance estimation;
 // qyeno, query ENO;
 // searchspace, search space;
@@ -627,10 +695,11 @@ __global__ void CalcSignificanceObsDynPlmProfile(
 // dp2alndatbuffers, device memory for profile-profile alignment statistics;
 // 
 __global__ void CalcStatisticsDynPlm(
+    bool Xuninf,
     uint ndb1pros,
     uint ndb1prosOmtd, uint ndbCprosOmtd,
     uint nqyposs, uint ndb1poss, uint ndbCposs, uint dbxpad,
-    uint /*querposoffset*/, uint bdb1posoffset, uint /*bdbCposoffset*/,
+    uint querposoffset, uint bdb1posoffset, uint /*bdbCposoffset*/,
     //
     const int ssemodel,
     float qyeno,
@@ -691,12 +760,22 @@ __global__ void CalcStatisticsDynPlm(
                 1);
 
     //calculate score probabilities (counts)
-    CalcScoreProbsDynPlmProfile<<<nblcks,nthrds/*,0,streamss*/>>>(
-        blockIdx.x/*phase-2 profile number*/,
-        (uint)nqyposs, (uint)dbprolenCache, dbpos, dblen,
-        scores,
-        tmpss2datbuffers
-    );
+    if( Xuninf )
+        CalcScoreProbsXuninfDynPlmProfile<<<nblcks,nthrds/*,0,streamss*/>>>(
+            blockIdx.x/*phase-2 profile number*/,
+            (uint)nqyposs, (uint)querposoffset,
+            (uint)dbprolenCache, (uint)dbprodstCache, dbfldsndx, 
+            dbpos, dblen,
+            scores, 
+            tmpss2datbuffers
+        );
+    else
+        CalcScoreProbsDynPlmProfile<<<nblcks,nthrds/*,0,streamss*/>>>(
+            blockIdx.x/*phase-2 profile number*/,
+            (uint)nqyposs, (uint)dbprolenCache, dbpos, dblen,
+            scores,
+            tmpss2datbuffers
+        );
     MYCUDACHECKLAST;
 
     //calculate statistical parameters

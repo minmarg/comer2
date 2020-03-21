@@ -20,7 +20,7 @@ class mystring;
 
 //command-line options
 namespace CLOptions {
-
+//comer options
 CLDECLAREOPTION( DEV_N, mystring, mystring, );
 CLDECLAREOPTION( DEV_MEM, int, int, );
 CLDECLAREOPTION( DEV_NGRIDS, int, int, );
@@ -30,6 +30,12 @@ CLDECLAREOPTION( IO_NBUFFERS, int, int, );
 CLDECLAREOPTION( IO_FILEMAP, int, int, );
 CLDECLAREOPTION( IO_UNPINNED, int, int, );
 
+//makecov options
+CLDECLAREOPTION( XCOV_USEEXTENTS, int, int, );
+CLDECLAREOPTION( XCOV_MIXTRGFRQS, int, int, );
+CLDECLAREOPTION( XCOV_CORR, int, int, );
+CLDECLAREOPTION( XCOV_SCALEWGTS, int, int, );
+CLDECLAREOPTION( XCOV_MI, int, int, );
 }//namespace CLOptions
 
 #endif//__CLOptions__

@@ -16,7 +16,7 @@ static const char*  makeinst = "\n\
 <>\n\
 \n\
 Make binary representation of profile database.\n\
-(C)2013-2019 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
+(C)2013-2020 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
 \n\
 \n\
 Usage:\n\
@@ -24,6 +24,9 @@ Usage:\n\
 \n\
 Main options:\n\
 -d <database_pathname>      Name of profile database (without extension).\n\
+-p <options_filename>       Input file of options.\n\
+                        By default, the options file in the installation\n\
+                            directory is used.\n\
 \n\
 Other options:\n\
 -v                          Verbose mode.\n\

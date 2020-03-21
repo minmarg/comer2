@@ -170,7 +170,7 @@ int DevCmp( const void* vector, size_t n1, size_t n2 )
     return (int)
         (dev2->ccmajor_ == dev1->ccmajor_)
         ?   ((dev2->ccminor_ == dev1->ccminor_)
-             ?  (int)((dev2->totmem_>>20) - (dev1->totmem_>>20))
+             ?  (int)((dev2->reqmem_>>20) - (dev1->reqmem_>>20)) //NOTE:prefer reqmem_ to totmem_
              :  (dev2->ccminor_ - dev1->ccminor_))
         :   (dev2->ccmajor_ - dev1->ccmajor_)
     ;

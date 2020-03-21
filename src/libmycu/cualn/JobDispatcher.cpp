@@ -339,6 +339,7 @@ void JobDispatcher::CreateDevMemoryConfigs(
             *dprop,
             HDPSCORES.GetScores()!=NULL,
             MOptions::GetMAPALN()==1,
+            MOptions::GetX_UNINF()==1,
             dprop->reqmem_,
             (int)nareasperdevice
         );

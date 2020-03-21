@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <memory>
 
@@ -20,6 +21,7 @@
 #include "liblib/logitnormal.h"
 #include "liblib/BinarySearchStructure.h"
 #include "libpro/srcpro/MOptions.h"
+#include "libpro/srcpro/CLOptions.h"
 #include "libpro/srcpro/Configuration.h"
 #include "libpro/srcpro/SUBSTABLE.h"
 #include "libpro/srcpro/BMProtoProfile.h"
@@ -134,6 +136,37 @@ void MSA::SelectSequences()
 
     SetBackgroundProbabilities();
     SetPosNoSequences();
+}
+
+// -------------------------------------------------------------------------
+// CalculateXCovMatrices: calculate cross-covariance matrices betwee the 
+// positions of the profile
+//
+void MSA::CalculateXCovMatrices(const char* filename)
+{
+    float avgpeseq;
+
+    SelectSequences();
+
+    ComputeGlobSequenceWeights( &avgpeseq );
+
+#if 1
+    if( gbUSEXTENTS )
+        ComputeExtents();
+
+    if( gbUSEXTENTS )
+          ComputeMIDstateSequenceWeights();
+    else  ComputeMIDstateSequenceWeightsNoExtents();
+#else
+    ComputeGWMIDstateSequenceWeights( avgpeseq );
+    ComputeTransitionFrequencies( true/*gwghts*/, false );
+#endif
+
+    AdjustWeights();
+
+    ComputeTargetFrequenciesMDLVar();
+
+    CalculateAndPrintXCovMatrices(filename);
 }
 
 // -------------------------------------------------------------------------
@@ -3842,6 +3875,230 @@ void MSA::ComputeTargetFrequenciesMDLVar()
         // save information content
         protoprofile_->SetInformationAt( information, p );
     }
+}
+
+
+
+
+
+// =========================================================================
+// CalculateAndPrintXCovMatrices: calculate and print cross-covariance 
+// matrices between the positions of the profile
+//
+void MSA::CalculateAndPrintXCovMatrices(const char* filename)
+{
+    const mystring preamb = "MSA::CalculateAndPrintXCovMatrices: ";
+    myruntime_error mre;
+    FILE* fp = NULL;
+
+    //{{local run-time control variables:
+    //flag of using extents when determining whether sequence positions 
+    //contribute to calculations:
+    static const bool cbExtentsUsed = CLOptions::GetXCOV_USEEXTENTS();
+    //mix observed frequencies with target probabilities when calculating
+    //cross-covariance matrix:
+    static const bool cbXCovMixTrgFrqs = CLOptions::GetXCOV_MIXTRGFRQS();
+    //compute cross-correlation matrix instead of cross-covariance matrix:
+    static const bool cbXCorrelation = CLOptions::GetXCOV_CORR();
+    //scale sequence weights by the number of sequences in the respective extent:
+    static const bool cbScaleSeqWeights = CLOptions::GetXCOV_SCALEWGTS();
+    //additionally calculate mutual information and add to calculated xcov values:
+    static const bool cbMI = CLOptions::GetXCOV_MI();
+    static constexpr size_t noeffress = NUMAA;
+    //}}
+
+    //number of elements in cross-covariance matrix
+    static constexpr size_t nxcovels = noeffress * noeffress;
+    float xcov[nxcovels], mutinf;
+    const float (*trgfrqs)[NUMALPH];//target frequencies at position i
+    const float (*trgfrqs2)[NUMALPH];//target frequencies at position j
+    float frqs[noeffress], frqs2[noeffress], fct1;
+    float avgfrqs[noeffress], avgfrqs2[noeffress];//average frequencies
+
+    const size_t    noseqs = GetSize();
+    const size_t    nomstates = protoprofile_->GetEffectiveSize();
+
+    float* weights[PS_NSTATES] = {NULL,NULL,NULL};
+    float* weights2[PS_NSTATES] = {NULL,NULL,NULL};
+
+    unsigned char res1, res2, a1, a2;
+    std::unique_ptr<char,MyMSAStrDestroyer> errbuf((char*)std::malloc(20*KBYTE));
+    size_t  p, p2, pM, pM2, i, n, nseqs;
+
+    fp = fopen( filename, "w" );
+    if( fp == NULL )
+        throw MYRUNTIME_ERROR(preamb + "Failed to open file for writing.");
+
+    try {
+        if( fprintf(fp, "## COMER xcov format v2.2\nLength= %zu xcov_size= %zu\n",
+                nomstates, cbMI? nxcovels+1: nxcovels) < 0 )
+            throw MYRUNTIME_ERROR(preamb + "Write to file failed.");
+
+        for( p = pM = 0; p < protoprofile_->GetSize(); p++ ) {
+            // omit unsued positions
+            if( !protoprofile_->IsUsedAt(p))
+                continue;
+            if( !protoprofile_->GetStateAt(p))
+                continue;
+
+            pM++;
+
+            weights[PS_M] = protoprofile_->GetSqnWeightsAt(p, PS_M);
+            if( !weights[PS_M]) {
+                sprintf(errbuf.get(), "Null weights2 at %zu.", p);
+                throw MYRUNTIME_ERROR(preamb + errbuf.get());
+            }
+
+            trgfrqs = protoprofile_->GetTargetFreqnsAt(p);
+            if(trgfrqs == NULL) {
+                sprintf(errbuf.get(), "Null target probabilities at %zu.", p);
+                throw MYRUNTIME_ERROR(preamb + errbuf.get());
+            }
+
+            for( p2 = p, pM2 = pM-1; p2 < protoprofile_->GetSize(); p2++ ) {
+                // omit unsued positions
+                if( !protoprofile_->IsUsedAt(p2))
+                    continue;
+                if( !protoprofile_->GetStateAt(p2))
+                    continue;
+
+                pM2++;
+
+                weights2[PS_M] = protoprofile_->GetSqnWeightsAt(p2, PS_M);
+                if( !weights2[PS_M]) {
+                    sprintf(errbuf.get(), "Null weights2 at %zu.", p2);
+                    throw MYRUNTIME_ERROR(preamb + errbuf.get());
+                }
+
+                trgfrqs2 = protoprofile_->GetTargetFreqnsAt(p2);
+                if(trgfrqs2 == NULL) {
+                    sprintf(errbuf.get(), "Null target2 probabilities at %zu.", p2);
+                    throw MYRUNTIME_ERROR(preamb + errbuf.get());
+                }
+
+                mutinf = 0.0f;
+                memset(xcov, 0, nxcovels * sizeof(xcov[0]));
+                memset(avgfrqs, 0, noeffress * sizeof(avgfrqs[0]));
+                memset(avgfrqs2, 0, noeffress * sizeof(avgfrqs2[0]));
+
+                //{{cross-covariance between positions p and p2
+                for( i = 0, nseqs = 0; i < noseqs; i++ ) {
+                    if(!GetSequenceAt(i)->GetUsed())
+                        continue;
+                    if(cbExtentsUsed) {
+                        // omit sequences absent from the extent
+                        if( !GetSequenceAt(i)->IsUsedInExtentAt(p) ||
+                            !GetSequenceAt(i)->IsUsedInExtentAt(p2))
+                            continue;
+                    }
+                    res1 = GetSequenceAt(i)->GetResidueAt(p);
+                    res2 = GetSequenceAt(i)->GetResidueAt(p2);
+                    if( res1 == GAP || res2 == GAP )
+                        continue;
+
+                    if(cbXCovMixTrgFrqs) {
+                        memcpy(frqs, *trgfrqs, noeffress * sizeof(float));
+                        memcpy(frqs2, *trgfrqs2, noeffress * sizeof(float));
+                        if(res1 < noeffress)
+                            frqs[res1] = 1.0f;
+                        if(res2 < noeffress)
+                            frqs2[res2] = 1.0f;
+                    }
+
+                    nseqs++;
+
+                    //averages for position p2
+                    if(cbXCovMixTrgFrqs) {
+                        for(a2 = 0; a2 < noeffress; a2++ )
+                            avgfrqs2[a2] += frqs2[a2] * weights2[PS_M][i];
+                    } else if(res1 < noeffress && res2 < noeffress)
+                        avgfrqs2[res2] += weights2[PS_M][i];
+
+                    //cross-covariance; TODO: unroll
+                    if(cbXCovMixTrgFrqs) {
+                        for(a1 = 0, n = 0; a1 < noeffress; a1++ ) {
+                            fct1 = frqs[a1] * weights[PS_M][i];
+                            avgfrqs[a1] += fct1;
+                            for(a2 = 0; a2 < noeffress; a2++, n++ )
+                                xcov[n] += fct1 * frqs2[a2] * weights2[PS_M][i];
+                        }
+                    } else if(res1 < noeffress && res2 < noeffress) {
+                        avgfrqs[res1] += weights[PS_M][i];
+                        n = res1 * noeffress + res2;
+                        xcov[n] += weights[PS_M][i] * weights2[PS_M][i];
+                    }
+                }
+                //}}//xcov over sequences
+                if(nomstates < pM2)
+                    throw MYRUNTIME_ERROR(preamb + "Invalid position 2.");
+                //{{adjust cross-covariance for this pair of positions
+                if(nseqs >= 1) {
+                    if( cbMI) {
+                        float nrm1 = 0.0f, nrm2 = 0.0f, nrmp = 0.0f;
+                        for(a1 = 0, n = 0; a1 < noeffress; a1++ ) {
+                            nrm1 += avgfrqs[a1];
+                            nrm2 += avgfrqs2[a1];
+                            for(a2 = 0; a2 < noeffress; a2++, n++ )
+                                nrmp += xcov[n];
+                        }
+                        if( nrmp) {
+                            for(a1 = 0, n = 0; a1 < noeffress; a1++ )
+                                for(a2 = 0; a2 < noeffress; a2++, n++ ) {
+                                    //if xcov[n]>0, then both avgfrqs>0 too
+                                    if(!xcov[n])
+                                        continue;
+                                    mutinf += 
+                                        xcov[n] * logf(xcov[n]*nrm1*nrm2/(avgfrqs[a1]*avgfrqs2[a2]*nrmp));
+                                }
+                            mutinf /= nrmp;
+                        }
+                        //remove error effects
+                        if( mutinf < 0.0f)
+                            mutinf = 0.0f;
+                    }
+                    //NOTE: when scaling is used, every element has to be 
+                    //scaled by the number of sequences; the scaling then 
+                    //reduces for the mean vectors (because of normalization) 
+                    //and it becomes nseqs for the cross-covariance matrix 
+                    //(scaling=nseqs*nseqs, norm_constant=nseqs)
+                    fct1 = cbScaleSeqWeights? (float)nseqs: 1.0f/(float)nseqs;
+                    for(a1 = 0, n = 0; a1 < noeffress; a1++ ) {
+                        if( !cbScaleSeqWeights) {
+                            avgfrqs[a1] *= fct1;
+                            avgfrqs2[a1] *= fct1;
+                        }
+                        if(cbXCorrelation) {
+                            for(a2 = 0; a2 < noeffress; a2++, n++ )
+                                xcov[n] = fct1 * xcov[n];
+                        }
+                        else {
+                            for(a2 = 0; a2 < noeffress; a2++, n++ )
+                                xcov[n] = fct1 * xcov[n] - avgfrqs[a1] * avgfrqs2[a2];
+                        }
+                    }
+                }
+                //}}
+                //{{write to file
+                char *pbuf = errbuf.get();
+                for(n = 0; n < nxcovels; n++) {
+                    sprintf(pbuf, " %.3g", xcov[n]);
+                    pbuf += strlen(pbuf);
+                }
+                if( cbMI)
+                    sprintf(pbuf, " %.3g", mutinf);
+                if( fprintf(fp, "%zu %zu  %s\n", pM, pM2, errbuf.get()) < 0 )
+                    throw MYRUNTIME_ERROR(preamb + "Write to file failed.");
+                //}}
+            }//for(p2)
+        }//for(p)
+    } catch( myexception const& ex ) {
+        mre = ex;
+    }
+
+    if(fp) 
+        fclose(fp);
+    if( mre.isset())
+        throw mre;
 }
 
 

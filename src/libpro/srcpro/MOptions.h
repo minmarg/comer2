@@ -30,6 +30,7 @@ DECLAREOPTION( DSCLEN, int, int, );
 DECLAREOPTION( DSCWIDTH, int, int, );
 DECLAREOPTION( ALNWIDTH, int, int, );
 
+DECLAREOPTION( X_UNINF, int, int, );
 DECLAREOPTION( IDENTITY, int, float, *0.01f );
 DECLAREOPTION( SHOWCMD, int, int, );
 

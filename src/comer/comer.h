@@ -17,14 +17,14 @@
 // 2.01   Initial project 2
 // 2.02   Re-engineered load distribution on GPUS leading to significantly improved performance
 
-static const char*  version = "2.02";
+static const char*  version = "2.02.03";
 static const char*  verdate = "";
 
 static const char*  instructs = "\n\
 <>\n\
 \n\
 Protein remote homology search tool.\n\
-(C)2013-2019 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
+(C)2013-2020 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
 \n\
 \n\
 Usage:\n\

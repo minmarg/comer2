@@ -34,6 +34,7 @@ public:
 
     void CalculateAlnStatisticsDevice(
         cudaStream_t streamproc,
+        bool Xuninf,
         size_t ndb1pros,
         size_t ndbCpros,
         size_t ndb1prosOmtd,
@@ -62,6 +63,7 @@ public:
 
     void CalculateStatisticsDeviceHelper(
         cudaStream_t streamproc,
+        bool Xuninf,
         size_t ndb1pros,
         size_t ndbCpros,
         size_t ndb1prosOmtd,
