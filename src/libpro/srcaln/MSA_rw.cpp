@@ -481,7 +481,7 @@ void MSA::ReadSTOCKHOLM1( const char* filename, int* format )
             }
 
             sind++;
-            statesempty = states.empty();
+            statesempty = (sind == 1);//states.empty();//NOTE:go on the state sequence once cycled
 
             //save alignment sequence
             for( p = pp; *p == ' ' || *p == '\t' ; p++ );
