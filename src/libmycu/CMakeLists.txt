@@ -8,6 +8,8 @@ add_library( mycu STATIC
 	cupro/TdDataReader.cpp
 	cupro/CuDeviceMemory.cu
 	cupro/CuBatchProcessingFinalizer.cpp
+	cupro/CuBatchProcessingFinalizerPlain.cpp
+	cupro/CuBatchProcessingFinalizerJSON.cpp
 	cupro/CuBatchProcessing.cu
 #
 	cusco/CuBatchScoreMatrix_Init.cu
@@ -41,6 +43,8 @@ add_library( mycu STATIC
 	cualn/Devices.cu
 	cualn/DevCommThread.cpp
 	cualn/AlnWriter.cpp
+	cualn/AlnWriterPlain.cpp
+	cualn/AlnWriterJSON.cpp
 	cualn/JobDispatcher.cpp
 )
 

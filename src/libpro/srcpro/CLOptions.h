@@ -20,7 +20,13 @@ class mystring;
 
 //command-line options
 namespace CLOptions {
+enum TOutputFormat {
+    ofPlain,
+    ofJSON,
+    ofnOutputFormat
+};
 //comer options
+CLDECLAREOPTION( B_FMT, int, int, );
 CLDECLAREOPTION( DEV_N, mystring, mystring, );
 CLDECLAREOPTION( DEV_MEM, int, int, );
 CLDECLAREOPTION( DEV_NGRIDS, int, int, );

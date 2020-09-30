@@ -29,6 +29,7 @@ using namespace CLOptions;
 // -------------------------------------------------------------------------
 // command-line options for comer
 //
+CLDEFINEASSIGNMENT( B_FMT, int, 0, value>=0 && value<ofnOutputFormat );
 CLDEFINEASSIGNMENT( DEV_N, mystring, "1", 1 )
 CLDEFINEASSIGNMENT( DEV_MEM, int, -1, value>=100 && value<=1000000 )
 CLDEFINEASSIGNMENT( DEV_NGRIDS, int, 1, value>=1 && value<=20 );

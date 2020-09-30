@@ -16,8 +16,11 @@
 // Version history:
 // 2.01   Initial project 2
 // 2.02   Re-engineered load distribution on GPUS leading to significantly improved performance
+// 2.03   Masked X positions
+// 2.04   JSON format for output introduced
 
-static const char*  version = "2.02.03";
+
+static const char*  version = "2.02.04";
 static const char*  verdate = "";
 
 static const char*  instructs = "\n\
@@ -30,11 +33,13 @@ Protein remote homology search tool.\n\
 Usage:\n\
 <> -i <query> -d <database> [-o <output>] [-p <options>] [<other_options>]\n\
 \n\
-Alignment search options:\n\
+Basic search options:\n\
 -i <query_profiles>         <> (stacked) profile(s) made by makepro or profile\n\
                             database (use extension .prd) made by makedb+db2bin.\n\
 -d <database_name>          Database made by makedb+db2bin from this package.\n\
 -o <output_directory>       Directory of output files for each query.\n\
+-f <file_format>            Format of output files: 0, Plain; 1, JSON.\n\
+                        Default=0\n\
 -p <options_file>           Input file of options;\n\
                             By default, the options file in the installation\n\
                             directory is used.\n\

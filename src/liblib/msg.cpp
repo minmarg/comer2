@@ -23,6 +23,17 @@ std::chrono::high_resolution_clock::now();
 const char* PROGDIR = NULL;
 const char* PROGNAME = NULL;
 const char* PROGVERSION = NULL;
+const char* PROGREFERENCES[] = {
+    "Margelevicius, M. (2020). "
+    "COMER2: GPU-accelerated sensitive and specific homology searches. "
+    "Bioinformatics 36, 3570-3572.",
+
+    "Margelevicius, M. (2016). "
+    "Bayesian nonparametrics in protein remote homology search. "
+    "Bioinformatics 32, 2744-2752.",
+
+    NULL
+};
 
 int*        __PARGC__ = NULL;
 char***     __PARGV__ = NULL;

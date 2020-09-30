@@ -35,6 +35,7 @@ typedef int ( *TPrintFunction )( void*, const char* format, ... );
 extern const char*  PROGDIR;
 extern const char*  PROGNAME;
 extern const char*  PROGVERSION;
+extern const char*  PROGREFERENCES[];
 
 extern int*         __PARGC__;
 extern char***      __PARGV__;

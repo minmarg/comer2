@@ -21,6 +21,7 @@
 #include <thread>
 
 #include "libpro/srcpro/Configuration.h"
+#include "libpro/srcpro/CLOptions.h"
 
 #define WRITERTHREAD_MSG_UNSET -1
 #define WRITERTHREAD_MSG_ERROR -2
@@ -207,34 +208,40 @@ protected:
         const char* outdirname,
         const char* qryname,
         const int qrynr );
-    int WriteProgname( char*& outptr );
-    int WriteQueryDescription( 
-        char*& outptr,
-        int maxsize,
-        bool printname,
-        const int qrylen,
-        const char* name,
-        const char* desc,
-        const int width );
-    int WriteSearchInformation( 
-        char*& outptr,
-        int maxsize,
-        const char* dbname,
-        const size_t dbsize,
-        const size_t ndbentries,
-        const float logevthrld,
-        const int indent,
-        const int annotlen,
-        const bool found );
-    int WriteSummary( 
-        char*& outptr,
-        const float refLambda, const float refK,
+    int WriteProgname( char*& outptr, int maxsize, const int width );
+    int WriteQueryDescription(char*& outptr, int maxsize, bool printname,
+        const int qrylen, const char* name, const char* desc, const int width );
+    int WriteSearchInformation(char*& outptr, int maxsize, const char* dbname,
+        const size_t dbsize, const size_t ndbentries,
+        const float logevthrld, const int indent, const int annotlen, const bool found );
+    int WriteSummary(char*& outptr, const float refLambda, const float refK,
         const float expGappedLambda, const float expGappedK,
-        const int qrylen,
-        const size_t dbsize,
-        const size_t ndbentries,
-        const float sspace,
-        const int deltalen );
+        const int qrylen, const size_t dbsize, const size_t ndbentries, 
+        const float sspace, const int deltalen );
+
+    void WriteResultsPlain();
+    int WritePrognamePlain( char*& outptr, int maxsize, const int width );
+    int WriteQueryDescriptionPlain(char*& outptr, int maxsize, bool printname,
+        const int qrylen, const char* name, const char* desc, const int width );
+    int WriteSearchInformationPlain(char*& outptr, int maxsize, const char* dbname,
+        const size_t dbsize, const size_t ndbentries,
+        const float logevthrld, const int indent, const int annotlen, const bool found );
+    int WriteSummaryPlain(char*& outptr, const float refLambda, const float refK,
+        const float expGappedLambda, const float expGappedK,
+        const int qrylen, const size_t dbsize, const size_t ndbentries, 
+        const float sspace, const int deltalen );
+
+    void WriteResultsJSON();
+    int WritePrognameJSON( char*& outptr, int maxsize, const int width );
+    int WriteQueryDescriptionJSON(char*& outptr, int maxsize, bool printname,
+        const int qrylen, const char* name, const char* desc, const int width );
+    int WriteSearchInformationJSON(char*& outptr, int maxsize, const char* dbname,
+        const size_t dbsize, const size_t ndbentries,
+        const float logevthrld, const int indent, const int annotlen, const bool found );
+    int WriteSummaryJSON(char*& outptr, const float refLambda, const float refK,
+        const float expGappedLambda, const float expGappedK,
+        const int qrylen, const size_t dbsize, const size_t ndbentries, 
+        const float sspace, const int deltalen );
 
     int GetTotalNumberOfRecords() const
     {
@@ -312,6 +319,85 @@ private:
     int qrysernr_;//query serial number
 };
 
+////////////////////////////////////////////////////////////////////////////
+// AlnWriter INLINES
+//
+inline
+void AlnWriter::WriteResults()
+{
+    const int outfmt = CLOptions::GetB_FMT();
+
+    if(outfmt==CLOptions::ofJSON) {
+        WriteResultsJSON();
+        return;
+    }
+
+    WriteResultsPlain();
+    return;
+}
+
 // -------------------------------------------------------------------------
+//
+inline
+int AlnWriter::WriteProgname( char*& outptr, int maxsize, const int width )
+{
+    const int outfmt = CLOptions::GetB_FMT();
+
+    if(outfmt==CLOptions::ofJSON)
+        return WritePrognameJSON(outptr, maxsize, width);
+
+    return WritePrognamePlain(outptr, maxsize, width);
+}
+
+// -------------------------------------------------------------------------
+//
+inline
+int AlnWriter::WriteQueryDescription(char*& outptr, int maxsize, bool printname,
+        const int qrylen, const char* name, const char* desc, const int width )
+{
+    const int outfmt = CLOptions::GetB_FMT();
+
+    if(outfmt==CLOptions::ofJSON)
+        return WriteQueryDescriptionJSON(outptr, maxsize, printname, qrylen, name, desc, width);
+
+    return WriteQueryDescriptionPlain(outptr, maxsize, printname, qrylen, name, desc, width);
+}
+
+// -------------------------------------------------------------------------
+//
+inline
+int AlnWriter::WriteSearchInformation(char*& outptr, int maxsize, const char* dbname,
+        const size_t dbsize, const size_t ndbentries,
+        const float logevthrld, const int indent, const int annotlen, const bool found )
+{
+    const int outfmt = CLOptions::GetB_FMT();
+
+    if(outfmt==CLOptions::ofJSON)
+        return WriteSearchInformationJSON(outptr, maxsize, dbname,
+            dbsize, ndbentries, logevthrld, indent, annotlen, found);
+
+    return WriteSearchInformationPlain(outptr, maxsize, dbname,
+            dbsize, ndbentries, logevthrld, indent, annotlen, found);
+}
+
+// -------------------------------------------------------------------------
+//
+inline
+int AlnWriter::WriteSummary(char*& outptr, const float refLambda, const float refK,
+        const float expGappedLambda, const float expGappedK,
+        const int qrylen, const size_t dbsize, const size_t ndbentries, 
+        const float sspace, const int deltalen )
+{
+    const int outfmt = CLOptions::GetB_FMT();
+
+    if(outfmt==CLOptions::ofJSON)
+        return WriteSummaryJSON(outptr, refLambda, refK,
+            expGappedLambda, expGappedK,
+            qrylen, dbsize, ndbentries, sspace, deltalen);
+
+    return WriteSummaryPlain(outptr, refLambda, refK,
+            expGappedLambda, expGappedK,
+            qrylen, dbsize, ndbentries, sspace, deltalen);
+}
 
 #endif//__AlnWriter_h__

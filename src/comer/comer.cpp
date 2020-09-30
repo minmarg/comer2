@@ -34,6 +34,7 @@ int main( int argc, char *argv[] )
     mystring        input;
     mystring        database;
     mystring        output;
+    mystring        format;
     mystring        optfile;
     mystring        verbose;
     mystring        devmaxN;
@@ -59,6 +60,7 @@ int main( int argc, char *argv[] )
         {"i", my_required_argument, 'i'},
         {"d", my_required_argument, 'd'},
         {"o", my_required_argument, 'o'},
+        {"f", my_required_argument, 'f'},
         {"p", my_required_argument, 'p'},
         {"v", my_optional_argument, 'v'},
         {"h", my_no_argument, 'h'},
@@ -90,6 +92,7 @@ int main( int argc, char *argv[] )
                     case 'i':   input = myoptarg; break;
                     case 'd':   database = myoptarg; break;
                     case 'o':   output = myoptarg; break;
+                    case 'f':   format = myoptarg; break;
                     case 'p':   optfile = myoptarg; break;
                     case 'v':   verblev = 1; verbose = myoptarg; break;
                     //
@@ -167,6 +170,15 @@ int main( int argc, char *argv[] )
 
     //{{ COMMAND-LINE OPTIONS
     TRY
+        if( !format.empty()) {
+            c = strtol( format.c_str(), &p, 10 );
+            if( errno || *p ) {
+                error( "Invalid argument of option -f." );
+                return EXIT_FAILURE;
+            }
+            CLOPTASSIGN( B_FMT, c );
+        }
+
         if( !devmaxN.empty()) {
             CLOPTASSIGN( DEV_N, devmaxN );
         }

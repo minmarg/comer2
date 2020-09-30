@@ -4,4 +4,5 @@ and algorithms to provide extremely fast computation on GPU
 practically removing stalls arising due to waiting for data from the CPU to arrive
 2.02.03, March 2020  *  The option of making masked profile positions 
 uninformative has been added; it is on by default
+2.02.04, September 2020  *  JSON format for search results made available
 

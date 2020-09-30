@@ -85,4 +85,39 @@ void FormatDescription(
         for(int i=1; i<=3; i++) *(outptr-i) = '.';
 }
 
+// -------------------------------------------------------------------------
+// FormatDescriptionJSON: format profile description in JSON format;
+// NOTE: space is assumed to be pre-allocated;
+// outptr, pointer to the output buffer;
+// desc, profile description to copy;
+// maxoutlen, maximum length of output description;
+// outpos, current position in the output buffer;
+inline
+void FormatDescriptionJSON( 
+    char*& outptr,
+    const char* desc,
+    const int maxoutlen,
+    int& outpos)
+{
+    for(;*desc && (*desc==' '||*desc=='\t'||*desc=='\n'||*desc=='\r');desc++);
+
+    while( *desc && outpos < maxoutlen ) {
+        if(*desc==' '||*desc=='\t') {
+            for(;*desc && (*desc==' '||*desc=='\t');desc++);
+            *outptr++ = ' ';
+            outpos++;
+            continue;
+        }
+        else if(*desc=='"'||*desc=='\\'||*desc=='/') {
+            *outptr++ = '\\';
+            outpos++;
+        }
+        *outptr++ = *desc++;
+        outpos++;
+    }
+
+    if(maxoutlen <= outpos && 3 < maxoutlen)
+        for(int i=1; i<=3; i++) *(outptr-i) = '.';
+}
+
 #endif//__fmtdescription_h__

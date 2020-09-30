@@ -124,6 +124,9 @@ my  $infileppss = "$outdir/$inbase.pp.ss";
 my  $infileppss2 = "$outdir/$inbase.pp.ss2";
 my  $infilepphor = "$outdir/$inbase.pp.hor";
 
+my  $Xuninf = 1;
+
+exit(1) unless GetXuninf($OPTIONS, \$Xuninf);
 
 if( $SELECTS ) {
     printf( STDERR "Selecting sequences...\n");
@@ -162,7 +165,7 @@ printf( STDERR "\nPredicting SS with PSIPRED...\n");
 exit(1) unless PredictSS( $infileblastchk, $infileppmtx, $infileppss, $infileppss2, $infilepphor );
 
 # exit(1) unless Output( $infilepphor, $OUTFILE );
-exit(1) unless Output2( $infileppss2, $OUTFILE );
+exit(1) unless Output2( $infileppss2, $Xuninf, $OUTFILE );
 
 unless( $NOFLUSH ) {
     unlink <$infileblast*>;
@@ -173,6 +176,28 @@ unless( $NOFLUSH ) {
 
 printf( STDERR "\nDone.\n\n");
 exit(0);
+
+## -------------------------------------------------------------------
+## Get the value of option X_UNINF in the options file
+##
+sub GetXuninf
+{
+    my  $options = shift;
+    my  $rXuninf = shift;
+    my  $command;
+    my  $ret = 1;
+    return 1 unless $options;
+    unless( open( F, $options )) {
+        printf(STDERR "ERROR: Failed to open options file: %s\n", $options);
+        return 0;
+    }
+    while(<F>) {
+        next if /^\s*#/;
+        do {$$rXuninf = $1; last} if /^\s*X_UNINF\s*=\s*(\d+)/;
+    }
+    close(F);
+    return $ret;
+}
 
 ## -------------------------------------------------------------------
 ## Select non-redundant set of sequences from multiple alignment
@@ -688,6 +713,7 @@ sub Output
 sub Output2
 {
     my  $ss2file = shift;
+    my  $xuninf = shift;
     my  $output = shift;
     my (@pred, $len, $n, $sum );
     my  $ret = 1;
@@ -722,8 +748,13 @@ sub Output2
     }
     printf( OF "## Sequence SS Probability (C,E,H)\n##\n");
     for( $n = 0; $n <= $#pred; $n++ ) {
-        printf( OF "%3s %3s %7.3f %5.3f %5.3f\n", $pred[$n][0], $pred[$n][1], 
-            $pred[$n][2], $pred[$n][4], $pred[$n][3]);
+        if($xuninf && $pred[$n][0] =~ /[X\*]/i) {
+            printf( OF "%3s %3s %7.3f %5.3f %5.3f\n", $pred[$n][0], 'C', 0, 0, 0);
+        }
+        else {
+            printf( OF "%3s %3s %7.3f %5.3f %5.3f\n", $pred[$n][0], $pred[$n][1], 
+                $pred[$n][2], $pred[$n][4], $pred[$n][3]);
+        }
     }
     close(OF);
     return $ret;

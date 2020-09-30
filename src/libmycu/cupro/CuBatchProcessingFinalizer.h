@@ -172,13 +172,9 @@ protected:
         rsp_msg_ = CUBPTHREAD_MSG_ERROR;
     }
 
-    void CompressResults();
     void SortCompressedResults();
     void PassResultsToWriter();
-    void GetSizeOfCompressedResults(
-        size_t* szannot, size_t* szalns, size_t* szalnswodesc) const;
     void PrintCompressedResults() const;
-
 
     float GetBitScore( float logeval ) {
         return cubp_set_sspace_ <= 0.0f? 0.0f:
@@ -192,37 +188,43 @@ protected:
     }
 
 
-    void MakeAnnotation( 
-        char*& outptr,
-        const char* desc,
-        const int maxoutlen,
-        const int width,
-        const float score,
-        const double evalue) const;
+    //{{formating methods for PLAIN format
+    void CompressResultsPlain();
+    void GetSizeOfCompressedResultsPlain(
+        size_t* szannot, size_t* szalns, size_t* szalnswodesc) const;
 
-    void FormatScores(
-        char*& outptr,
-        unsigned int prondx,
-        unsigned int orgprondx,
-        unsigned int alnlen,
-        float score,
-        float logeval,
-        double evalue,
-        int dbprolen );
+    void MakeAnnotationPlain( char*& outptr, const char* desc,
+        const int maxoutlen, const int width, const float score, const double evalue) const;
 
-    void FormatAlignment(
-        char*& outptr,
-        unsigned int prondx,
-        unsigned int orgprondx,
-        unsigned int dbpro2dst,
-        int alnlen,
-        int dbprolen,
-        const int width,
-        bool printsss,
+    void FormatScoresPlain( char*& outptr,
+        unsigned int prondx, unsigned int orgprondx, unsigned int alnlen,
+        float score, float logeval, double evalue, int dbprolen );
+
+    void FormatAlignmentPlain( char*& outptr,
+        unsigned int prondx, unsigned int orgprondx, unsigned int dbpro2dst,
+        int alnlen, int dbprolen, const int width, bool printsss,
         const bool qrysssinuse );
 
-    void FormatFooter(
-        char*& outptr, unsigned int prondx );
+    void FormatFooterPlain( char*& outptr, unsigned int prondx );
+    //}}
+    //{{formating methods for JSON format
+    void CompressResultsJSON();
+    void GetSizeOfCompressedResultsJSON(
+        size_t* szannot, size_t* szalns, size_t* szalnswodesc) const;
+
+    void MakeAnnotationJSON( char*& outptr, const char* desc,
+        const int maxoutlen, const float score, const double evalue) const;
+
+    void FormatScoresJSON( char*& outptr,
+        unsigned int prondx, unsigned int alnlen,
+        float score, float logeval, double evalue);
+
+    void FormatAlignmentJSON( char*& outptr,
+        unsigned int prondx, unsigned int orgprondx, unsigned int dbpro2dst,
+        int alnlen, int dbprolen, bool printsss, const bool qrysssinuse );
+
+    void FormatFooterJSON( char*& outptr, unsigned int prondx );
+    //}}
 
     
     const char* GetBegOfAlns() {
