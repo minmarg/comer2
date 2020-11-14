@@ -235,9 +235,10 @@ bool Devices::RegisterDeviceProperties( int devid, ssize_t maxmem, bool checkdup
 
     cudaDeviceProp deviceProp;
     size_t freemem, totalmem;
-    MYCUDACHECK( cudaSetDevice( devid ));
-    MYCUDACHECK( cudaGetDeviceProperties( &deviceProp, devid ));
-    MYCUDACHECK( cudaMemGetInfo ( &freemem, &totalmem ));
+    //if false, the device cannot be queried; a possible reason is occupied memory
+    if(!MYCUDACHECKPASS( cudaSetDevice( devid ))) return false;
+    if(!MYCUDACHECKPASS( cudaGetDeviceProperties( &deviceProp, devid ))) return false;
+    if(!MYCUDACHECKPASS( cudaMemGetInfo ( &freemem, &totalmem ))) return false;
     //
     if( deviceProp.computeMode == cudaComputeModeProhibited )
         return false;

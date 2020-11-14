@@ -17,6 +17,9 @@
 // CUDA L2 Cache line size
 #define CUL2CLINESIZE 32
 
+// evaluate err anyway; if it does not evaluate to cudaSuccess, reset the 
+// error by calling cudaGetLastError() and return false:
+#define MYCUDACHECKPASS(err) ((err), cudaGetLastError() == cudaSuccess)
 #define MYCUDACHECKLAST mycudaCheck(cudaGetLastError(),__FILE__,__LINE__,__func__)
 #define MYCUDACHECK(err) mycudaCheck(err,__FILE__,__LINE__,__func__)
 inline __host__ __device__ void mycudaCheck( 
