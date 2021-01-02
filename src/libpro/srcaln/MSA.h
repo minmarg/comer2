@@ -10,6 +10,8 @@
 
 #include <stdlib.h>
 
+#include <vector>
+
 #include "liblib/alpha.h"
 #include "libpro/srcpro/BMProtoProfile.h"
 // #include "libpro/srcpro/PMProfileModel.h"
@@ -48,6 +50,8 @@ public:
     void    SelectSequences();
     void    CalculateXCovMatrices(const char* filename);
     void    ConstructProfile();
+
+    void    CalculateNeff(const std::vector<float>& idnt_thlds, std::vector<float>& neffs, size_t&, size_t&);
 
     size_t  GetSize() const { return length_; };
     size_t  GetCapacity() const { return capacity_; }

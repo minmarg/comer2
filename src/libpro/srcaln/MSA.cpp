@@ -14,6 +14,7 @@
 #include <stdio.h>
 
 #include <memory>
+#include <vector>
 
 #include "extsp/psl.h"
 #include "liblib/msg.h"
@@ -829,6 +830,107 @@ void MSA::PurgeAtSequenceIdentity()
         }
     }
     //}}
+}
+
+// -------------------------------------------------------------------------
+// CalculateNeff: calculate the effective number of sequences using the 
+// formula: SUM_i w_i, where w_i = 1/k_i and k_i = SUM_j H(S(i,j)-S_thr), 
+// with S(i,j) sequence identity between sequences i and j, S_thr a sequence 
+// identity threshold, and H(.) the unit step function;
+// idnt_thlds, sequence identity thresholds to calculate Neff at;
+// neffs, output Neff for each identity threshold idnt_thlds;
+//
+void MSA::CalculateNeff(const std::vector<float>& idnt_thlds, std::vector<float>& neffs, 
+    size_t& nmsaseqs, size_t& length1)
+{
+    mystring preamb = "MSA::CalculateNeff";
+    if(idnt_thlds.size() < 1)
+        return;
+
+    //PreprocessAlignment();
+
+    const size_t noseqs = GetSize();
+
+    nmsaseqs = noseqs;
+    length1 = (noseqs && GetSequenceAt(0))? GetSequenceAt(0)->GetEffectiveSize(): 0;
+
+    if(noseqs < 1)
+        return;
+
+    size_t segment;//length of aligned segment
+    size_t matches;//number of residue matches in the sequences
+    size_t i, j, t, e1, e2, p1, p2;
+    unsigned char r1;
+    BMSequence* fst, *sec;
+    std::vector<std::vector<size_t>> rawseqs(noseqs);
+    std::vector<std::vector<int>> kseqs(idnt_thlds.size(), std::vector<int>(noseqs, 1));
+
+    for(std::vector<size_t>& v: rawseqs)
+        v.reserve(1024);
+
+    //make condense representation of sequences
+    for( i = 0; i < noseqs; i++ )
+    {
+        if((fst = GetSequenceAt(i)) == NULL)
+            continue;
+        for(e1 = 0; e1 < fst->GetSize(); e1++) {
+            r1 = fst->GetResidueAt(e1);
+            if(r1 == GAP || r1 == X)
+                continue;
+            rawseqs[i].push_back(e1);
+        }
+    }
+
+    neffs.reserve(idnt_thlds.size());
+
+    for( i = 0; i < noseqs; i++ )
+    {
+        if((fst = GetSequenceAt(i)) == NULL)
+            continue;
+
+        for( j = 0; j < i; j++ )
+        {
+            if((sec = GetSequenceAt(j)) == NULL)
+                continue;
+
+            matches = 0;
+            segment = SLC_MIN(rawseqs[i].size(), rawseqs[j].size());
+
+            for(e1 = e2 = 0; e1 < rawseqs[i].size() && e2 < rawseqs[j].size();)
+            {
+                //{{unnecessary but avoids compiler "over-"optimization
+                p1 = rawseqs[i][e1];
+                p2 = rawseqs[j][e2];
+                //}}
+                for(; e1 < rawseqs[i].size() && (p1 = rawseqs[i][e1]) < p2; e1++);
+                for(; e2 < rawseqs[j].size() && (p2 = rawseqs[j][e2]) < p1; e2++);
+
+                if(p1 == p2 && e1 < rawseqs[i].size() && e2 < rawseqs[j].size()) {
+                    if( fst->GetResidueAt(p1) == sec->GetResidueAt(p2))
+                        matches++;
+                    e1++;
+                    e2++;
+                }
+            }
+
+            float fidn = segment? (float)matches/(float)segment: 0.f;
+
+            for(t = 0; t < idnt_thlds.size(); t++) {
+                if(idnt_thlds[t] <= fidn) {
+                    kseqs[t][i]++;
+                    kseqs[t][j]++;
+                }
+            }
+        }
+    }
+
+    //calculate neffs for each given threshold
+    for(t = 0; t < kseqs.size(); t++) {
+        float nf = 0.f;
+        for(i = 0; i < kseqs[t].size(); i++)
+            nf += 1.f/(float)kseqs[t][i];
+        neffs[t] = nf;
+    }
 }
 
 // -------------------------------------------------------------------------
