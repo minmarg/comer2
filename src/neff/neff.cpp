@@ -147,7 +147,7 @@ int main( int argc, char *argv[] )
         fprintf(stdout, "\nTotal_number_of_sequences= %zu  Length_of_1st_sequence= %zu\n\n",
                 nmsaseqs, length1);
         for(size_t t = 0; t < vidnthlds.size(); t++)
-            fprintf(stdout, "Neff= %9.2f @ %.3g\n", neffs[t], vidnthlds[t]);
+            fprintf(stdout, "Neff= %9.2f @ %.3g%s\n", neffs[t], vidnthlds[t], t? "": " sequence identity");
         fprintf(stdout, "\n");
 
     CATCH_ERROR_RETURN(;);
