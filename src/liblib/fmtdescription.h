@@ -116,8 +116,11 @@ void FormatDescriptionJSON(
         outpos++;
     }
 
-    if(maxoutlen <= outpos && 3 < maxoutlen)
-        for(int i=1; i<=3; i++) *(outptr-i) = '.';
+    if(maxoutlen <= outpos && 3 < maxoutlen) {
+        int i;
+        for(i=1; i<=3; i++) *(outptr-i) = '.';
+        for(; i <= outpos && *(outptr-i) == '\\'; i++) *(outptr-i) = '.';
+    }
 }
 
 #endif//__fmtdescription_h__
