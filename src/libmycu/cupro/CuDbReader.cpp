@@ -502,8 +502,9 @@ bool CuDbReader::NextProfileHeader(
         if( GetOpenedFileType()==Db::DbFlMAINBin)
             BinaryReadProfileHeader( &profile_buffer_, desc, file, prolen, scale, pmdata );
         else {
-            TextReadProfileHeader( &profile_buffer_, desc, file, prolen, scale, pmdata );
-//             TextReadProfileHeaderBufferless( &profile_buffer_, desc, file, prolen, scale, pmdata );
+            if(!TextReadProfileHeader(&profile_buffer_, desc, file, prolen, scale, pmdata))
+//             if(!TextReadProfileHeaderBufferless(&profile_buffer_, desc, file, prolen, scale, pmdata))
+                return false;
         }
     } catch( myexception const& ex )
     {
@@ -562,10 +563,11 @@ void CuDbReader::CacheProfileDirect(bool pageonly)
     MYMSG("CuDbReader::CacheProfileDirect",5);
 
     size_t pos = profile_buffer_.curpos_;
+    bool dataread = true;
 
-    while( !CompleteProfileInProfileBuffer(pos))
+    while( dataread && !CompleteProfileInProfileBuffer(pos))
     {
-        ReadPage(current_strdata_);
+        dataread = ReadPage(current_strdata_);
         pos = profile_buffer_.datlen_;
         MoveDataFromPageToProfileBuffer();
         if( pageonly )
@@ -579,7 +581,7 @@ void CuDbReader::CacheProfileDirect(bool pageonly)
 // NOTE: the data buffer field of chstr is assumed to be preallocated to the
 // page size
 //
-void CuDbReader::ReadPage( TCharStream& chstr )
+bool CuDbReader::ReadPage( TCharStream& chstr )
 {
     MYMSG("CuDbReader::ReadPage",6);
 
@@ -590,7 +592,7 @@ void CuDbReader::ReadPage( TCharStream& chstr )
         throw MYRUNTIME_ERROR("CuDbReader::ReadPage: Invalid argument.");
 
     if( db_size_bytes_ <= chstr.pageoff_)
-        return;
+        return false;
 
     size_t nbytes = db_size_bytes_ - chstr.pageoff_;
 
@@ -626,6 +628,8 @@ void CuDbReader::ReadPage( TCharStream& chstr )
         chstr.pagenr_++;
         chstr.pageoff_ += bytesread;
     }
+
+    return true;
 }
 
 

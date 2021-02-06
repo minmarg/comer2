@@ -905,6 +905,9 @@ void JobDispatcher::ReadProfiles(
         {
             noteof = db.NextProfileHeader( &pdesc, &pfile, &prolen, &scale, auxps );
 
+            if(!noteof)
+                break;
+
             if( maxprolen && *maxprolen < prolen )
                 *maxprolen = prolen;
                 

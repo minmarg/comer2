@@ -45,7 +45,7 @@
 // NOTE: on return, desc, file, and pmdata do not point to the end of data;
 // 
 template<typename T>
-void TextReadProfileHeader(T* fp, 
+bool TextReadProfileHeader(T* fp, 
     mystring* desc, mystring* file, 
     int* prolen, int* scale, char** pmdata)
 {
@@ -74,6 +74,9 @@ void TextReadProfileHeader(T* fp,
     //read version number
     if(( emsg = skip_comments( fp, buffer )) != 0 )
         throw MYRUNTIME_ERROR( preamb + TranslateReadError( emsg ));
+
+    if(feof(fp) && buffer.empty())
+        return false;
 
     if( feof( fp ) || buffer.empty())
         throw MYRUNTIME_ERROR( preamb + "Wrong profile format." );
@@ -264,6 +267,8 @@ void TextReadProfileHeader(T* fp,
 
     if( feof( fp ) || buffer.empty())
         throw MYRUNTIME_ERROR( preamb + "Wrong profile format." );
+
+    return true;
 }
 
 // -------------------------------------------------------------------------
@@ -1222,11 +1227,11 @@ void TextWriteProfileHD(FILE* fp,
 // Instantiations
 
 template
-void TextReadProfileHeader<FILE>(FILE* fp, 
+bool TextReadProfileHeader<FILE>(FILE* fp, 
                     mystring* desc, mystring* file,
                     int* prolen, int* scale, char** pmdata);
 template
-void TextReadProfileHeader<TCharStream>(TCharStream* fp, 
+bool TextReadProfileHeader<TCharStream>(TCharStream* fp, 
                     mystring* desc, mystring* file,
                     int* prolen, int* scale, char** pmdata);
 
@@ -1257,7 +1262,7 @@ void TextReadProfileData<TCharStream>(TCharStream* fp,
 // NOTE: on return, desc, file, and pmdata do not point to the end of data;
 //
 template<typename T>
-void TextReadProfileHeaderBufferless(T* fp, 
+bool TextReadProfileHeaderBufferless(T* fp, 
     mystring* desc, mystring* file, 
     int* prolen, int* scale, char** pmdata)
 {
@@ -1286,6 +1291,9 @@ void TextReadProfileHeaderBufferless(T* fp,
     //read version number
     if(( emsg = skip_comments( fp, pdata, 0, &datlen )) != 0 )
         throw MYRUNTIME_ERROR( preamb + TranslateReadError( emsg ));
+
+    if(feof(fp) && datlen < 1)
+        return false;
 
     if( feof( fp ) || datlen < 1)
         throw MYRUNTIME_ERROR( preamb + "Wrong profile format." );
@@ -1476,6 +1484,8 @@ void TextReadProfileHeaderBufferless(T* fp,
 
     if( feof( fp ) || datlen < 1)
         throw MYRUNTIME_ERROR( preamb + "Wrong profile format." );
+
+    return true;
 }
 
 // -------------------------------------------------------------------------
@@ -2245,7 +2255,7 @@ void TextReadProfileDataBufferless(T* fp,
 //                     mystring* desc, mystring* file,
 //                     int* prolen, int* scale, char** pmdata);
 template
-void TextReadProfileHeaderBufferless<TCharStream>(TCharStream* fp, 
+bool TextReadProfileHeaderBufferless<TCharStream>(TCharStream* fp, 
                     mystring* desc, mystring* file,
                     int* prolen, int* scale, char** pmdata);
 

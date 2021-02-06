@@ -4,8 +4,8 @@ and algorithms to provide extremely fast computation on GPU
 practically removing stalls arising due to waiting for data from the CPU to arrive
 2.02.03, March 2020  *  The option of making masked profile positions 
 uninformative has been added; it is on by default
-2.02.04, January 2021  *  JSON format for search results made available; Skipping
+2.02.04, February 2021  *  JSON format for search results made available; Skipping
 of GPUs with no free memory or those that cannot be queried has been implemented;
 A program for calculating the effective number of sequences in an MSA has been 
-added
+added; bug fix when the profile size perfectly aligns with the file page size;
 

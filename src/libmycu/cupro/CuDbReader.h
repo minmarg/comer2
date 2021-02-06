@@ -190,7 +190,7 @@ protected:
     void MapFile(Db::TFile);
     void UnmapFile(int);
 
-    void ReadPage( TCharStream& );
+    bool ReadPage( TCharStream& );
     void ReadDataMapped( size_t filepos, void* dst, size_t count );
     void ReadDataDirect( size_t filepos, void* dst, size_t count );
 

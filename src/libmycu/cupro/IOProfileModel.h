@@ -51,7 +51,7 @@ void BinaryReadProfileData(TCharStream* fp,
 // -------------------------------------------------------------------------
 
 template<typename T>
-void TextReadProfileHeader(T* fp, 
+bool TextReadProfileHeader(T* fp, 
                     mystring* desc, mystring* file,
                     int* prolen, int* scale, char** pmdata);
 template<typename T>
@@ -67,7 +67,7 @@ void TextWriteProfileHD(FILE* fp,
                     char** pmdata );
 
 template<typename T>
-void TextReadProfileHeaderBufferless(T* fp, 
+bool TextReadProfileHeaderBufferless(T* fp, 
                     mystring* desc, mystring* file,
                     int* prolen, int* scale, char** pmdata);
 template<typename T>
