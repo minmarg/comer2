@@ -263,8 +263,9 @@ bool CuDbReader::CompleteProfileInProfileBufferText( size_t endpos )
     for( size_t pos = profile_buffer_.datlen_-lenstrEND; 
         pos >= profile_buffer_.curpos_ && pos >= endpos; pos--)
     {
-        size_t m;
-        for( m = 0; m < lenstrEND && profile_buffer_.data_[pos+m] == patstrEND[m]; m++ );
+        size_t m = 0;
+        if(pos && (profile_buffer_.data_[pos-1] == '\n' || profile_buffer_.data_[pos-1] == '\r'))
+            for( ; m < lenstrEND && profile_buffer_.data_[pos+m] == patstrEND[m]; m++ );
         if( m == lenstrEND )
             return true;//found at pos;
         if( pos == 0 )
