@@ -1,13 +1,13 @@
 COMER2, a cross-platform software package for
 protein remote homology search and alignment
 
-(C)2013-2019 Mindaugas Margelevicius,
+(C)2013-2021 Mindaugas Margelevicius,
 Institute of Biotechnology, Vilnius University
 
 # Description
 
-   The COMER method based on sequence profile-profile comparison is one of
-   the most sensitive and accurate computational tools developed for protein
+   The COMER method based on sequence profile-profile comparison is a
+   sensitive, specific, and accurate computational tool developed for protein
    alignment and homology search. COMER version 2.2 (COMER2) represents one
    of the fastest implementations of calculations for sensitive protein
    homology search. High COMER2 performance is achieved by harnessing the
@@ -39,13 +39,22 @@ Institute of Biotechnology, Vilnius University
 
    The package is available at:
 
-   [http://comer2.sourceforge.net](http://comer2.sourceforge.net) (profile databases are available there)
+   [http://comer2.sourceforge.net](http://comer2.sourceforge.net)
 
    [https://github.com/minmarg/comer2](https://github.com/minmarg/comer2)
 
-   The Docker image will be available at:
+   The Docker image is available at:
 
-   https:\//hub.docker.com/r/minmar/comer2
+   [https://hub.docker.com/r/minmar/comer2](https://hub.docker.com/r/minmar/comer2)
+
+   See [Running a Docker container](#running-a-docker-container) for 
+   information on using the docker image.
+
+# COMER2 Profile databases
+
+   Up-to-date COMER2 profile databases for PDB70, SCOP70, and PFAM sequence 
+   families are available for download at:
+   [https://sourceforge.net/projects/comer2/files/comer2-profile-databases-2.02](https://sourceforge.net/projects/comer2/files/comer2-profile-databases-2.02)
 
 # Structure of the Package
 
@@ -211,6 +220,70 @@ GNFYAVRKGRE--T---G--------IYNTW---NECKNQVDGYG---GAIYKKFNSYEQAKSFLG
    (PSI-)BLAST output to FASTA format. Please type `blast2fa.pl -h` for more
    information.
 
+# Running a Docker container
+
+   The docker image encapsulates software dependencies. 
+   CUDA libraries, PSIPRED and BLAST software for incorporating 
+   secondary structure prediction into the profile using `makepro.sh` 
+   are included in the COMER2 docker image, so that the user can easily 
+   run COMER2 on GPU(s) without setting up CUDA drivers and installing 
+   external software before. 
+
+   The COMER2 image (210MB, compressed) can be pulled from the Docker 
+   repository using the command:
+
+```
+docker pull minmar/comer2
+```
+
+   The user's system is supposed to be equipped with one or more GPUs 
+   with an installed NVIDIA graphics driver. 
+   There is no requirement for CUDA drivers to be installed. 
+   Yet, 
+   [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+   should be installed to enable the container to connect to the 
+   graphics driver. 
+   If the user's system already has a CUDA driver installed, it should 
+   be at least version 10.1 or upgraded otherwise.
+
+   The container for constructing a COMER2 profile can be used as 
+   follows.
+   Let's assume that the user's directory `~/myhostdata` contains an 
+   MSA `myhostmsa.afa` in aligned FASTA format. 
+   Then a profile can be constructed and written in the same directory 
+   (`~/myhostdata/myhostmsa.pro`) using the following command:
+
+```
+docker run --rm --name=comer2 --gpus=all --user="$(id -u):$(id -g)" -ti \
+   -v ~/myhostdata:/myhome \
+   minmar/comer2 \
+   bin/makepro.sh -v -i /myhome/myhostmsa.afa -o /myhome/myhostmsa.pro
+```
+
+   The first line specifies the container to be removed once finished 
+   execution.
+   The host directory `~/myhostdata` is mounted on the container's 
+   directory `/myhome` for data exchange in the second line (access 
+   from within the container to the host system is not possible).
+   The third line specifies the image name, and the fourth line 
+   corresponds to the container's command with its arguments 
+   (`makepro.sh` in this case).
+
+   COMER2 search is initiated similarly:
+
+```
+docker run --rm --name=comer2 --gpus=all --user="$(id -u):$(id -g)" -ti \
+   -v ~/myhostdata:/myhome \
+   -v /data/databases/profile_dbs:/mydb \
+   minmar/comer2 \
+   bin/comer -v -i /myhome/myhostmsa.pro -d /mydb/pdb70_210331 -o /myhome/comer_output
+```
+
+   The main difference from the preceding command is the third line, 
+   which mounts the directory of profile databases 
+   `/data/databases/profile_dbs` in the host system on the container's 
+   directory `/mydb`.
+
 # Final Notes
 
    All executables in the COMER2 software package invoked with the "-h"
@@ -228,7 +301,7 @@ Margelevicius, M. (2019) Estimating statistical significance of local protein
 profile-profile alignments. BMC Bioinformatics 20, 419.
 
 Margelevicius, M. (2020) COMER2: GPU-accelerated sensitive and specific
-homology searches. Bioinformatics, doi:10.1093/bioinformatics/btaa185.
+homology searches. Bioinformatics 36(11), 3570-3572.
 
 # Funding
 
