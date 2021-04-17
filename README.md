@@ -261,7 +261,7 @@ docker run --rm --name=comer2 --gpus=all --user="$(id -u):$(id -g)" -ti \
 ```
 
    The first line specifies the container to be removed once finished 
-   execution.
+   execution (the image is not removed).
    The host directory `~/myhostdata` is mounted on the container's 
    directory `/myhome` for data exchange in the second line (access 
    from within the container to the host system is not possible).
