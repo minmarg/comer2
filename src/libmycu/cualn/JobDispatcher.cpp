@@ -48,7 +48,7 @@
 JobDispatcher::JobDispatcher(
     const char* configfile,
     const char* input,
-    const char* database,
+    const std::vector<std::string>& dblist,
     const char* output,
     float eval_thld,
     int no_hits,
@@ -57,8 +57,8 @@ JobDispatcher::JobDispatcher(
 :
     configFile_( configfile ),
     input_( input ),
-    database_( database ),
     output_( output ),
+    dblist_( dblist ),
     writer_(NULL),
 
 //     scoreSystem_( NULL ),
@@ -92,7 +92,6 @@ JobDispatcher::JobDispatcher()
 :
     configFile_( NULL ),
     input_( NULL ),
-    database_( NULL ),
     output_( NULL ),
 
     eval_upper_( 0.0f ),
@@ -173,13 +172,13 @@ void JobDispatcher::ReadConfiguration()
 // CreateReader: create a thread reading data from file
 //
 void JobDispatcher::CreateReader( 
-    const char* dbname,
+    const std::vector<std::string>& dbnamelist,
     bool mapped,
     int nqueries,
     Configuration* config )
 {
     MYMSG( "JobDispatcher::CreateReader", 3 );
-    reader_ = new TdDataReader( dbname, mapped, nqueries, config );
+    reader_ = new TdDataReader( dbnamelist, mapped, nqueries, config );
     if( reader_ == NULL )
         throw MYRUNTIME_ERROR(
         "JobDispatcher::CreateReader: Failed to create the reading thread.");
@@ -201,7 +200,7 @@ void JobDispatcher::GetDbSizeFromReader()
         throw MYRUNTIME_ERROR(
         "JobDispatcher::GetDbSizeFromReader: Invalid response from the reader.");
     }
-    reader_->GetDbSize( &db_no_seqs_, &db_size_ );
+    reader_->GetDbSize( &db_no_seqs_, &db_size_, &dblist_ );
 }
 
 // -------------------------------------------------------------------------
@@ -249,13 +248,13 @@ bool JobDispatcher::GetDbDataFromReader(
 void JobDispatcher::CreateAlnWriter( 
     Configuration* config,
     const char* outdirname,
-    const char* dbname,
+    const std::vector<std::string>& dbnamelist,
     size_t prodbsize,
     size_t ndbentries,
     int nqueries )
 {
     MYMSG( "JobDispatcher::CreateAlnWriter", 3 );
-    writer_ = new AlnWriter( config, outdirname, dbname, prodbsize, ndbentries, nqueries );
+    writer_ = new AlnWriter( config, outdirname, dbnamelist, prodbsize, ndbentries, nqueries );
     if( writer_ == NULL )
         throw MYRUNTIME_ERROR(
         "JobDispatcher::CreateAlnWriter: Failed to create the writing thread.");
@@ -1018,7 +1017,7 @@ void JobDispatcher::Run()
             throw MYRUNTIME_ERROR( preamb + "Query data has not been cached." );
 
         CreateReader( 
-            GetDatabase(),
+            GetDbNamelist(),
             CLOptions::GetIO_FILEMAP(),
             (int)nqueries,
             GetConfiguration());
@@ -1035,7 +1034,7 @@ void JobDispatcher::Run()
         CreateAlnWriter( 
             GetConfiguration(),
             output_,
-            GetDatabase(),
+            GetDbNamelist(),
             GetDbSize(),
             GetNoSequences(),
             (int)nqueries );

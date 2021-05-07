@@ -9,4 +9,4 @@ of GPUs with no free memory or those that cannot be queried has been implemented
 A program for calculating the effective number of sequences in an MSA has been 
 added; bug fix when the profile size perfectly aligns with the file page size;
 bug fix for uniquely determining profle end when reading multiple of them;
-
+2.03.01, May 2021  *  Multiple database search implemented;

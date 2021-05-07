@@ -20,14 +20,14 @@
 // 2.04   JSON format for output introduced
 
 
-static const char*  version = "2.02.04";
+static const char*  version = "2.03.01";
 static const char*  verdate = "";
 
 static const char*  instructs = "\n\
 <>\n\
 \n\
 Protein remote homology search tool.\n\
-(C)2013-2020 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
+(C)2013-2021 Mindaugas Margelevicius, Institute of Biotechnology, Vilnius University\n\
 \n\
 \n\
 Usage:\n\
@@ -36,7 +36,9 @@ Usage:\n\
 Basic search options:\n\
 -i <query_profiles>         <> (stacked) profile(s) made by makepro or profile\n\
                             database (use extension .prd) made by makedb+db2bin.\n\
--d <database_name>          Database made by makedb+db2bin from this package.\n\
+-d <database_name_list>     Database made by makedb+db2bin from this package.\n\
+                            NOTE: Multiple comma-separated database names can be\n\
+                            provided.\n\
 -o <output_directory>       Directory of output files for each query.\n\
 -f <file_format>            Format of output files: 0, Plain; 1, JSON.\n\
                         Default=0\n\
@@ -98,7 +100,7 @@ Other options:\n\
 \n\
 Examples:\n\
 <> -i myprofile.pro -d mydb -o my_output_directory (database used without extension)\n\
-<> -i mystackedprofiles.pro -d mydb -o my_out_dir (multiple stacked query profiles)\n\
+<> -i mystackedprofiles.pro -d mydb1,mydb2,mydbn -o my_out_dir (multiple stacked query profiles; multiple databases)\n\
 <> -i mydb1 -d mydb2 -o my_output_directory (query database searched against mydb2)\n\
 <> -i mydb1.prd -d mydb2 -o my_out_dir -p my_search_options.txt\n\
 \n\

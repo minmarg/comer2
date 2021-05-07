@@ -6,8 +6,8 @@ dirname=$( dirname $0 )
 updirname=$( dirname $dirname )
 
 
-INSTPSIPRED="/share/install/psipred"
-INSTBLASTP="/share/install/ncbi-blast/ncbi-blast-2.2.23+"
+INSTPSIPRED="/data/installed-software/psipred3.5"
+INSTBLASTP="/data/installed-software/ncbi-blast-2.2.23+"
 INSTCOMER="$updirname"
 INPUT=
 OUTPUT=

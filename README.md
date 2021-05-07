@@ -4,6 +4,8 @@ protein remote homology search and alignment
 (C)2013-2021 Mindaugas Margelevicius,
 Institute of Biotechnology, Vilnius University
 
+v2.3.1
+
 # Description
 
    The COMER method based on sequence profile-profile comparison is a
@@ -160,9 +162,14 @@ Institute of Biotechnology, Vilnius University
   *  comer, the main program for homology search using one or more GPUs.
 
    Assuming that a query profile myprofile.pro and a profile database mydb
-   have been obtained, the simplest way to run `comer` is to type:
+   (or databases mydb1 and mydb2) have been obtained, the simplest way to 
+   run `comer` is to type (single database):
 
      comer -i myprofile.pro -d mydb -o my_output_directory
+
+   or (mutliple databases)
+
+     comer -i myprofile.pro -d mydb1,mydb2 -o my_output_directory
 
    where my_output_directory is an output directory to store output
    alignments files for each query profile present in the input file

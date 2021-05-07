@@ -58,7 +58,7 @@ public:
     AlnWriter( 
         Configuration*,
         const char* outdirname,
-        const char* dbname,
+        const std::vector<std::string>& dbnamelist,
         size_t prodbsize,
         size_t ndbentries,
         int nqueries
@@ -211,7 +211,8 @@ protected:
     int WriteProgname( char*& outptr, int maxsize, const int width );
     int WriteQueryDescription(char*& outptr, int maxsize, bool printname,
         const int qrylen, const char* name, const char* desc, const int width );
-    int WriteSearchInformation(char*& outptr, int maxsize, const char* dbname,
+    int WriteSearchInformation(char*& outptr, int maxsize, 
+        const std::vector<std::string>& dbnamelist,
         const size_t dbsize, const size_t ndbentries,
         const float logevthrld, const int indent, const int annotlen, const bool found );
     int WriteSummary(char*& outptr, const float refLambda, const float refK,
@@ -223,7 +224,8 @@ protected:
     int WritePrognamePlain( char*& outptr, int maxsize, const int width );
     int WriteQueryDescriptionPlain(char*& outptr, int maxsize, bool printname,
         const int qrylen, const char* name, const char* desc, const int width );
-    int WriteSearchInformationPlain(char*& outptr, int maxsize, const char* dbname,
+    int WriteSearchInformationPlain(char*& outptr, int maxsize, 
+        const std::vector<std::string>& dbnamelist,
         const size_t dbsize, const size_t ndbentries,
         const float logevthrld, const int indent, const int annotlen, const bool found );
     int WriteSummaryPlain(char*& outptr, const float refLambda, const float refK,
@@ -235,7 +237,8 @@ protected:
     int WritePrognameJSON( char*& outptr, int maxsize, const int width );
     int WriteQueryDescriptionJSON(char*& outptr, int maxsize, bool printname,
         const int qrylen, const char* name, const char* desc, const int width );
-    int WriteSearchInformationJSON(char*& outptr, int maxsize, const char* dbname,
+    int WriteSearchInformationJSON(char*& outptr, int maxsize, 
+        const std::vector<std::string>& dbnamelist,
         const size_t dbsize, const size_t ndbentries,
         const float logevthrld, const int indent, const int annotlen, const bool found );
     int WriteSummaryJSON(char*& outptr, const float refLambda, const float refK,
@@ -287,7 +290,7 @@ private:
     float expGappedK_;//experimental gapped K
     //}}
     const char* mstr_set_outdirname_;//output directory name
-    const char* mstr_set_dbname_;//database name
+    std::vector<std::string> mstr_set_dbnamelist_;//database namelist
     size_t mstr_set_prodbsize_;//profile database size in positions
     size_t mstr_set_ndbentries_;//number of database entries
     //{{query and summary data:
@@ -366,17 +369,18 @@ int AlnWriter::WriteQueryDescription(char*& outptr, int maxsize, bool printname,
 // -------------------------------------------------------------------------
 //
 inline
-int AlnWriter::WriteSearchInformation(char*& outptr, int maxsize, const char* dbname,
+int AlnWriter::WriteSearchInformation(char*& outptr, int maxsize, 
+        const std::vector<std::string>& dbnamelist,
         const size_t dbsize, const size_t ndbentries,
         const float logevthrld, const int indent, const int annotlen, const bool found )
 {
     const int outfmt = CLOptions::GetB_FMT();
 
     if(outfmt==CLOptions::ofJSON)
-        return WriteSearchInformationJSON(outptr, maxsize, dbname,
+        return WriteSearchInformationJSON(outptr, maxsize, dbnamelist,
             dbsize, ndbentries, logevthrld, indent, annotlen, found);
 
-    return WriteSearchInformationPlain(outptr, maxsize, dbname,
+    return WriteSearchInformationPlain(outptr, maxsize, dbnamelist,
             dbsize, ndbentries, logevthrld, indent, annotlen, found);
 }
 

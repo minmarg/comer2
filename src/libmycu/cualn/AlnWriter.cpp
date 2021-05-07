@@ -35,7 +35,7 @@
 AlnWriter::AlnWriter( 
     Configuration* config,
     const char* outdirname,
-    const char* dbname,
+    const std::vector<std::string>& dbnamelist,
     size_t prodbsize,
     size_t ndbentries,
     int nqueries )
@@ -48,7 +48,7 @@ AlnWriter::AlnWriter(
     expGappedK_(-1.0f),
     //
     mstr_set_outdirname_(outdirname),
-    mstr_set_dbname_(dbname),
+    //mstr_set_dbnamelist_(dbnamelist),
     mstr_set_prodbsize_(prodbsize),
     mstr_set_ndbentries_(ndbentries),
     //
@@ -73,6 +73,7 @@ AlnWriter::AlnWriter(
     qrysernr_(-1)
 {
     MYMSG( "AlnWriter::AlnWriter", 3 );
+
     if( config ) {
         const Configuration& ungapped_config = config[CTUngapped];
         const Configuration& gapped_config = config[CTGapped];
@@ -82,6 +83,13 @@ AlnWriter::AlnWriter(
         expGappedLambda_ = gapped_config.GetLambda();
         expGappedK_ = gapped_config.GetK();
     }
+
+    for(const std::string& dbn: dbnamelist) {
+        //std::string::npos+1==0
+        std::string::size_type pos = dbn.rfind(DIRSEP) + 1;
+        mstr_set_dbnamelist_.push_back(dbn.substr(pos));
+    }
+
     tobj_ = new std::thread( &AlnWriter::Execute, this, (void*)NULL );
 }
 

@@ -15,6 +15,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <vector>
 
 #include <cuda_runtime_api.h>
 
@@ -32,7 +33,14 @@
 
 #define TREADER_MSG_UNSET -1
 #define TREADER_MSG_ERROR -2
+#define TREADER_MSG_EXIT -3
 
+struct DRDbobjDeleter {
+    void operator()(CuDbReader* p) const {
+        if(p)
+            delete(p);
+    };
+};
 struct DRDataDeleter {
     void operator()(void* p) const {
         if(p)
@@ -111,7 +119,7 @@ public:
 
 public:
     TdDataReader(
-        const char* dbname,
+        const std::vector<std::string>& dbnamelist,
         bool mapped,
         int nagents,
         Configuration*
@@ -135,7 +143,8 @@ public:
         cv_msg_.wait(lck_msg,
             [this,rsp1,rsp2]{
                 return (rsp_msg_ == rsp1 || rsp_msg_ == rsp2 || 
-                        rsp_msg_ == TREADER_MSG_ERROR);
+                        rsp_msg_ == TREADER_MSG_ERROR ||
+                        rsp_msg_ == TREADER_MSG_EXIT);
             }
         );
         //lock is back; unset the response
@@ -178,10 +187,11 @@ public:
 //             memcpy( szpm2dvfields, szpm2dvfields_, pmv2DTotFlds * sizeof(size_t));
     }
 
-    void GetDbSize( size_t* nentries, size_t* dbsize ) const {
+    void GetDbSize( size_t* nentries, size_t* dbsize, std::vector<std::string>* dbnamelist) const {
         std::lock_guard<std::mutex> lck(mx_dataccess_);
-        *nentries = ndbentries_;
-        *dbsize = prodbsize_;
+        *nentries = totndbentries_;
+        *dbsize = totprodbsize_;
+        *dbnamelist = dbnamelistsrtd_;
     }
 
     void SetChunkDataAttributes( 
@@ -196,7 +206,8 @@ public:
 protected:
     void Execute( void* args );
 
-    void OpenAndReadPreamble();
+    void CalculateTotalDbSize();
+    void OpenAndReadPreamble(const std::string& dbname);
     bool ReadLengthsAndDescEndAddrs();
     bool GetData(size_t chunkdatasize, size_t chunkdatalen, size_t chunknpros);
     void GetNextData(size_t chunkdatasize, size_t chunkdatalen, size_t chunknpros);
@@ -204,9 +215,10 @@ protected:
     void ReadDataChunkHelper( SbdbCData*, size_t lengthsndx, size_t npros, size_t totlen);
 
     void SetDbSize( size_t nentries, size_t dbsize ) {
-        std::lock_guard<std::mutex> lck(mx_dataccess_);
-        ndbentries_ = nentries;
-        prodbsize_ = dbsize;
+        //under lock already while setting
+        //std::lock_guard<std::mutex> lck(mx_dataccess_);
+        totndbentries_ = nentries;
+        totprodbsize_ = dbsize;
     }
 
     void ResetProfileCounters() {
@@ -235,8 +247,13 @@ private:
     size_t chunknpros_;
     //}}
     //{{db name and configuration:
-    CuDbReader dbobj_;
-    Configuration* config_;
+    const std::vector<std::string>& dbnamelist_;//db namelist (soted by name)
+    std::vector<std::string> dbnamelistsrtd_;//db namelist sorted by db size
+    std::unique_ptr<CuDbReader,DRDbobjDeleter> dbobj_;//ptr to a database
+    Configuration* config_;//config
+    bool mapped_;//database mapped
+    size_t totprodbsize_;//total profile database size in positions (over all databases)
+    size_t totndbentries_;//total number of database entries (over all databases)
     //}}
     //{{database attributes:
     size_t prodbsize_;//profile database size in positions

@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <functional>
 #include <algorithm>
 #include <thread>
 
@@ -30,6 +31,8 @@
 
 #include "TdDataReader.h"
 
+const std::vector<std::string> dummyvec;
+
 // _________________________________________________________________________
 // statics
 //
@@ -46,7 +49,7 @@ const size_t TdDataReader::s_szdatalign_ = CUL2CLINESIZE;
 // config, configuration;
 //
 TdDataReader::TdDataReader(
-    const char* dbname,
+    const std::vector<std::string>& dbnamelist,
     bool mapped,
     int nagents,
     Configuration* config )
@@ -58,8 +61,13 @@ TdDataReader::TdDataReader(
     chunkdatalen_(0UL),
     chunknpros_(0UL),
     //
-    dbobj_(dbname, mapped),
+    dbnamelist_(dbnamelist),
+    dbobj_(nullptr),
     config_(config),
+    mapped_(mapped),
+    totprodbsize_(0UL),
+    totndbentries_(0UL),
+    //
     prodbsize_(0UL),
     ndbentries_(0UL),
     addrdesc_end_addrs_(0UL),
@@ -94,6 +102,7 @@ TdDataReader::TdDataReader(
 //
 TdDataReader::TdDataReader()
 :   tobj_(NULL),
+    dbnamelist_(dummyvec),
     config_(NULL),
     bdbCprodescs_(NULL),
     bdbCpmbeg_(NULL),
@@ -124,9 +133,33 @@ void TdDataReader::Execute( void* )
 {
     MYMSG( "TdDataReader::Execute", 3 );
     myruntime_error mre;
+    size_t dbndx = 0;//database index
+
+
+    //get-data functional with control over multiple databases
+    std::function<int(size_t,size_t,size_t)> lfGetDataMeta = 
+    [this, &dbndx](size_t chunkdatasize, size_t chunkdatalen, size_t chunknpros)
+    {
+        if(dbnamelistsrtd_.size() <= dbndx)
+            return tdrrespmsgNoData;
+        while( !GetData(chunkdatasize, chunkdatalen, chunknpros)) {
+            if(dbnamelistsrtd_.size() <= ++dbndx)
+                return tdrrespmsgNoData;
+            OpenAndReadPreamble(dbnamelistsrtd_[dbndx]);
+        }
+        if(dbndx+1 < dbnamelistsrtd_.size())
+            lastchunk_ = false;
+        return tdrrespmsgDataReady;
+    };
+
 
     try {
-        OpenAndReadPreamble();
+        CalculateTotalDbSize();
+
+        if(dbnamelistsrtd_.size() < 1)
+            throw MYRUNTIME_ERROR("No valid databases.");
+
+        OpenAndReadPreamble(dbnamelistsrtd_[dbndx]);
 
         while(1) {
             //wait until the master bradcasts a message
@@ -135,7 +168,7 @@ void TdDataReader::Execute( void* )
             cv_msg_.wait(lck_msg,
                 [this]{return 
                     ((0 <= req_msg_ && req_msg_ <= tdrmsgTerminate) || 
-                     req_msg_ == TREADER_MSG_ERROR
+                    req_msg_ == TREADER_MSG_ERROR
                     );}
             );
 
@@ -167,12 +200,8 @@ void TdDataReader::Execute( void* )
                         break;
                 case tdrmsgGetData:
                         ;;
-                        if( GetData(chunkdatasize, chunkdatalen, chunknpros))
-                            rspmsg = tdrrespmsgDataReady;
-                        else
-                            rspmsg = tdrrespmsgNoData;
+                        rspmsg = lfGetDataMeta(chunkdatasize, chunkdatalen, chunknpros);
                         ;;
-                        //rspmsg = ;
                         break;
                 case tdrmsgTerminate:
                         rspmsg = tdrrespmsgTerminating;
@@ -218,7 +247,8 @@ void TdDataReader::Execute( void* )
     if( mre.isset())
         error( mre.pretty_format().c_str());
 
-    dbobj_.Close();
+    if(dbobj_)
+        dbobj_->Close();//the thread closes a db
 
     if( mre.isset()) {
         {//notify the master
@@ -228,9 +258,116 @@ void TdDataReader::Execute( void* )
         cv_msg_.notify_one();
         return;
     }
+    {//set the exit flag
+        std::lock_guard<std::mutex> lck_msg(mx_dataccess_);
+        rsp_msg_ = TREADER_MSG_EXIT;
+    }
+    cv_msg_.notify_one();
 }
 
-// -------------------------------------------------------------------------
+// =========================================================================
+// CalculateTotalDbSize: sort database names by size and calculate total 
+// database size over all databases
+// 
+void TdDataReader::CalculateTotalDbSize()
+{
+    std::lock_guard<std::mutex> lck_msg(mx_dataccess_);
+
+    //set the error flag at first
+    rsp_msg_ = TREADER_MSG_ERROR;
+
+    MYMSG( "TdDataReader::CalculateTotalDbSize", 3 );
+    const mystring preamb = "TdDataReader::CalculateTotalDbSize: ";
+
+    //index-size pairs:
+    std::vector<std::pair<size_t,size_t>> dbsizes;
+    size_t totnentries = 0UL, totdbsize = 0UL;
+
+    dbsizes.reserve(dbnamelist_.size());
+
+    for(size_t i = 0; i < dbnamelist_.size(); i++) {
+        CuDbReader db(dbnamelist_[i].c_str());
+        try {
+            db.Open();//will be closed on destruction
+        } catch( myruntime_error const& ex ) {
+            error( ex.pretty_format().c_str());
+            mystring strbuf = "Database skipped: ";
+            strbuf += dbnamelist_[i].c_str();
+            warning(strbuf.c_str());
+            continue;
+        }
+        const size_t szdbverstr = strlen(Db::patstrDBBINVER);
+        const size_t dzdbver = strlen(pmodel::PMProfileModel::GetBinaryDataVersion());
+        size_t szdbattr = szdbverstr + dzdbver + sizeof(size_t) + sizeof(size_t);
+        size_t sztable = pmodel::PMProfileModel::v2_2_NSECTIONS * sizeof(size_t);
+        char* p = NULL;
+
+        std::unique_ptr<char,DRDataDeleter>
+            locbuf((char*)std::malloc(szdbattr+sztable), DRDataDeleter());
+
+        db.ReadData( 0, p = locbuf.get(), szdbattr+sztable );//READ
+
+        if( strncmp(p,Db::patstrDBBINVER,szdbverstr)) {
+            mystring strbuf = "Database skipped due to wrong binary format: ";
+            strbuf += dbnamelist_[i].c_str();
+            warning(strbuf.c_str());
+            continue;
+        }
+        p += szdbverstr;
+
+        if( strncmp(p,pmodel::PMProfileModel::GetBinaryDataVersion(),dzdbver)) {
+            mystring strbuf = "Database skipped due to inconsistent version number: ";
+            strbuf += dbnamelist_[i].c_str();
+            warning(strbuf.c_str());
+            continue;
+        }
+        p += dzdbver;
+
+        //number of profiles
+        size_t nentries = *(size_t*)p;
+        p += sizeof(size_t);
+        if( nentries < 1 ) {
+            mystring strbuf = "Database skipped due to invalid number of profiles: ";
+            strbuf += dbnamelist_[i].c_str();
+            warning(strbuf.c_str());
+            continue;
+        }
+
+        //database size
+        size_t dbsize = *(size_t*)p;
+        p += sizeof(size_t);
+        if( dbsize < 1 ) {
+            mystring strbuf = "Database skipped due to invalid size: ";
+            strbuf += dbnamelist_[i].c_str();
+            warning(strbuf.c_str());
+            continue;
+        }
+
+        totnentries += nentries;
+        totdbsize += dbsize;
+        dbsizes.push_back(std::make_pair(i,dbsize));
+    }
+
+    SetDbSize( totnentries, totdbsize );
+
+    //sort by db size
+    std::sort(dbsizes.begin(), dbsizes.end(),
+        [](const std::pair<size_t,size_t>& p1, const std::pair<size_t,size_t>& p2) {
+            return p1.second > p2.second;
+        });
+
+    //save valid sorted database names
+    dbnamelistsrtd_.reserve(dbsizes.size());
+    for(const std::pair<size_t,size_t>& pr: dbsizes) {
+        dbnamelistsrtd_.push_back(dbnamelist_[pr.first]);
+    }
+
+    rsp_msg_ = TREADER_MSG_UNSET;
+}
+
+
+
+// =========================================================================
 //
 void GetNextValue( size_t* value, char*& pfrom, const size_t filesize )
 {
@@ -245,14 +382,19 @@ void GetNextValue( size_t* value, char*& pfrom, const size_t filesize )
 // OpenAndReadPreamble: open a database and read preamble, including 
 // database attributes, address table and profile lengths
 // 
-void TdDataReader::OpenAndReadPreamble()
+void TdDataReader::OpenAndReadPreamble(const std::string& dbname)
 {
     MYMSG( "TdDataReader::OpenAndReadPreamble", 3 );
     const mystring preamb = "TdDataReader::OpenAndReadPreamble: ";
 
-    dbobj_.Open();
+    //close will be called on destruction:
+    dbobj_.reset( new CuDbReader(dbname.c_str(), mapped_));
+    if(!dbobj_)
+        throw MYRUNTIME_ERROR( preamb + "Not enough memory.");
 
-    const size_t filesize = dbobj_.GetDbSizeInBytes();
+    dbobj_->Open();
+
+    const size_t filesize = dbobj_->GetDbSizeInBytes();
     const size_t szdbverstr = strlen(Db::patstrDBBINVER);
     const size_t dzdbver = strlen(pmodel::PMProfileModel::GetBinaryDataVersion());
     size_t szdbattr = szdbverstr + dzdbver + sizeof(size_t) + sizeof(size_t);
@@ -274,7 +416,7 @@ void TdDataReader::OpenAndReadPreamble()
 
     ResetProfileCounters();
 
-    dbobj_.ReadData( 0, p = locbuf.get(), szdbattr+sztable );//READ
+    dbobj_->ReadData( 0, p = locbuf.get(), szdbattr+sztable );//READ
 
     if( strncmp(p,Db::patstrDBBINVER,szdbverstr))
         throw MYRUNTIME_ERROR( preamb + "Wrong database binary format.");
@@ -296,7 +438,8 @@ void TdDataReader::OpenAndReadPreamble()
     if( dbsize < 1 )
         throw MYRUNTIME_ERROR( preamb + "Invalid database size read.");
 
-    SetDbSize( nentries, dbsize );
+    prodbsize_ = dbsize;
+    ndbentries_ = nentries;
 
     //fill in address table
     GetNextValue( addrtable_ + pps2DLen, p, filesize );//lengths
@@ -336,9 +479,14 @@ void TdDataReader::OpenAndReadPreamble()
 // 
 bool TdDataReader::ReadLengthsAndDescEndAddrs()
 {
+    const mystring preamb = "TdDataReader::ReadLengthsAndDescEndAddrs: ";
+
     if( ndbentries_ <= bdbClengths_to_ )
         //all data has been processed
         return false;
+
+    if(!dbobj_)
+        throw MYRUNTIME_ERROR(preamb + "NULL Db object.");
 
     //new number of profiles:
     bdbClengths_from_ = bdbClengths_to_;
@@ -351,14 +499,14 @@ bool TdDataReader::ReadLengthsAndDescEndAddrs()
     size_t allocsize = diffpron * sizeof(int);
     bdbClengths_.reset((int*)std::malloc(allocsize));
 
-    dbobj_.ReadData(startaddr, bdbClengths_.get(), allocsize);//READ
+    dbobj_->ReadData(startaddr, bdbClengths_.get(), allocsize);//READ
 
     //read end addresses of profile descriptions
     startaddr = addrdesc_end_addrs_ + bdbClengths_from_ * sizeof(size_t);
     allocsize = diffpron * sizeof(size_t);
     bdbCdesc_end_addrs_.reset((size_t*)std::malloc(allocsize));
 
-    dbobj_.ReadData( startaddr, bdbCdesc_end_addrs_.get(), allocsize);//READ
+    dbobj_->ReadData( startaddr, bdbCdesc_end_addrs_.get(), allocsize);//READ
 
     return true;
 }
@@ -520,6 +668,9 @@ void TdDataReader::ReadDataChunkHelper(
     MYMSGENDl
     const mystring preamb = "TdDataReader::ReadDataChunkHelper: ";
 
+    if(!dbobj_)
+        throw MYRUNTIME_ERROR(preamb + "NULL Db object.");
+
 #ifdef __DEBUG__
     if( pbdbC == NULL )
         throw MYRUNTIME_ERROR( preamb + "Memory access error.");
@@ -556,7 +707,7 @@ void TdDataReader::ReadDataChunkHelper(
     for( n = 0; n < pmv2DNoElems; n++ ) {
         bdbCpmbeg[pps2DBkgPrbs+n] = pbdbCdata;//
         szdat = SZFPTYPE * npros;//size to read
-        dbobj_.ReadData( 
+        dbobj_->ReadData( 
             addrtable_[pps2DBkgPrbs+n] + SZFPTYPE * bdbCdata_from_,
             pbdbCdata, szdat );
         szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -567,7 +718,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//ENOs//[pps2DENO]
     bdbCpmbeg[pps2DENO] = pbdbCdata;//
     szdat = SZFPTYPE * npros;
-    dbobj_.ReadData( 
+    dbobj_->ReadData( 
         addrtable_[pps2DENO] + SZFPTYPE * bdbCdata_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -594,7 +745,7 @@ void TdDataReader::ReadDataChunkHelper(
     for( n = 0; n < ptr2DNoElems; n++ ) {
         bdbCpmbeg[ptr2DTrnPrbs+n] = pbdbCdata;//
         szdat = SZFPTYPE * (npros + totlen);//size to read
-        dbobj_.ReadData(
+        dbobj_->ReadData(
             addrtable_[ptr2DTrnPrbs+n] + SZFPTYPE * (bdbCdata_from_ + bdbCdata_poss_from_),
             pbdbCdata, szdat );
         szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -606,7 +757,7 @@ void TdDataReader::ReadDataChunkHelper(
     for( n = 0; n < pmv2DNoElems; n++ ) {
         bdbCpmbeg[pmv2DTrgFrqs+n] = pbdbCdata;//
         szdat = SZFPTYPE * totlen;
-        dbobj_.ReadData(
+        dbobj_->ReadData(
             addrtable_[pmv2DTrgFrqs+n] + SZFPTYPE * bdbCdata_poss_from_,
             pbdbCdata, szdat );
         szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -618,7 +769,7 @@ void TdDataReader::ReadDataChunkHelper(
     for( n = 0; n < pmv2DNoCVEls; n++ ) {
         bdbCpmbeg[pmv2DCVentrs+n] = pbdbCdata;//
         szdat = SZFPTYPE * totlen;
-        dbobj_.ReadData(
+        dbobj_->ReadData(
             addrtable_[pmv2DCVentrs+n] + SZFPTYPE * bdbCdata_poss_from_,
             pbdbCdata, szdat );
         szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -629,7 +780,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//context vector probabilities//[pmv2DCVprior]
     bdbCpmbeg[pmv2DCVprior] = pbdbCdata;//
     szdat = SZFPTYPE * totlen;
-    dbobj_.ReadData( 
+    dbobj_->ReadData( 
         addrtable_[pmv2DCVprior] + SZFPTYPE * bdbCdata_poss_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -639,7 +790,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//squared norms of context vectors//[pmv2DCVnorm2]
     bdbCpmbeg[pmv2DCVnorm2] = pbdbCdata;//
     szdat = SZFPTYPE * totlen;
-    dbobj_.ReadData( 
+    dbobj_->ReadData( 
         addrtable_[pmv2DCVnorm2] + SZFPTYPE * bdbCdata_poss_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -651,7 +802,7 @@ void TdDataReader::ReadDataChunkHelper(
         bdbCpmbeg[pmv2DSSsprbs+n] = pbdbCdata;//
         pbdbCSSsprbs[n] = pbdbCdata;//save the beginning addresses of SS state probabilities
         szdat = SZFPTYPE * totlen;
-        dbobj_.ReadData(
+        dbobj_->ReadData(
             addrtable_[pmv2DSSsprbs+n] + SZFPTYPE * bdbCdata_poss_from_,
             pbdbCdata, szdat );
         szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -662,7 +813,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//HDP1 cluster membership probabilities//[pmv2DHDP1prb]
     bdbCpmbeg[pmv2DHDP1prb] = pbdbCdata;//
     szdat = SZFPTYPE * totlen;
-    dbobj_.ReadData( 
+    dbobj_->ReadData( 
         addrtable_[pmv2DHDP1prb] + SZFPTYPE * bdbCdata_poss_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -672,7 +823,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//HDP1 cluster indices//[pmv2DHDP1ind]
     bdbCpmbeg[pmv2DHDP1ind] = pbdbCdata;//
     szdat = SZINTYPE * totlen;
-    dbobj_.ReadData( 
+    dbobj_->ReadData( 
         addrtable_[pmv2DHDP1ind] + SZINTYPE * bdbCdata_poss_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -706,7 +857,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//amino acid sequences//[pmv2Daa]
     bdbCpmbeg[pmv2Daa] = pbdbCdata;//
     szdat = SZCHTYPE * totlen;
-    dbobj_.ReadData( 
+    dbobj_->ReadData( 
         addrtable_[pmv2Daa] + SZCHTYPE * bdbCdata_poss_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -716,7 +867,7 @@ void TdDataReader::ReadDataChunkHelper(
     //READ//secondary structure state sequences//[pmv2DSSstate]
     bdbCpmbeg[pmv2DSSstate] = pbdbCdata;//
     szdat = SZCHTYPE * totlen;
-    dbobj_.ReadData(
+    dbobj_->ReadData(
         addrtable_[pmv2DSSstate] + SZCHTYPE * bdbCdata_poss_from_,
         pbdbCdata, szdat );
     szval = ALIGN_UP(szdat, TdDataReader::s_szdatalign_);
@@ -726,7 +877,7 @@ void TdDataReader::ReadDataChunkHelper(
 
     //READ//end addresses of profile descriptions
     szdat = sizeof(size_t) * npros;
-    dbobj_.ReadData(
+    dbobj_->ReadData(
         addrdesc_end_addrs_ + sizeof(size_t) * bdbCdata_from_,
         pbdbCdata, szdat );
     pendaddrs = pbdbCdata;//save the address of description end addresses
@@ -741,7 +892,7 @@ void TdDataReader::ReadDataChunkHelper(
         pbdbC->AllocateSpaceForDescriptions(szdat);
         pbdbCdesc = pbdbC->bdbCdescs_.get();
     }
-    dbobj_.ReadData(addrdescproced_, pbdbCdesc, szdat);
+    dbobj_->ReadData(addrdescproced_, pbdbCdesc, szdat);
 
     size_t addrprevdesc = addrdescproced_;
 

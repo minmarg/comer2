@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <vector>
+#include <algorithm>
+
 #include "liblib/mygetopt.h"
 #include "liblib/msg.h"
 #include "incconf/localconfig.h"
@@ -23,6 +26,10 @@
 #include "comer.h"
 
 // =========================================================================
+// declarations:
+void GetDbNames(std::string, std::vector<std::string>&);
+
+// =========================================================================
 
 int main( int argc, char *argv[] )
 {
@@ -32,7 +39,7 @@ int main( int argc, char *argv[] )
     //names of input file and database
     mystring        myoptarg;
     mystring        input;
-    mystring        database;
+    std::string     database;
     mystring        output;
     mystring        format;
     mystring        optfile;
@@ -43,6 +50,7 @@ int main( int argc, char *argv[] )
     mystring        expct_prolen;
     mystring        devpass2memp;
     mystring        nbuffers;//number of input buffers for read
+    std::vector<std::string> dblist;//list of input database names
     bool            filemap = 0;//use file mapping
     bool            unpinned = 0;//use unpinned CPU memory
     bool            listdevices = 0;//whether to list available devices
@@ -90,7 +98,7 @@ int main( int argc, char *argv[] )
                     case 'h':   fprintf( stdout, "%s", usage(argv[0],instructs,version,verdate).c_str());
                                 return EXIT_SUCCESS;
                     case 'i':   input = myoptarg; break;
-                    case 'd':   database = myoptarg; break;
+                    case 'd':   database = myoptarg.c_str(); break;
                     case 'o':   output = myoptarg; break;
                     case 'f':   format = myoptarg; break;
                     case 'p':   optfile = myoptarg; break;
@@ -170,6 +178,8 @@ int main( int argc, char *argv[] )
 
     //{{ COMMAND-LINE OPTIONS
     TRY
+        GetDbNames(database, dblist);
+
         if( !format.empty()) {
             c = strtol( format.c_str(), &p, 10 );
             if( errno || *p ) {
@@ -471,7 +481,7 @@ int main( int argc, char *argv[] )
         jdisp = new JobDispatcher(
                     insparamfile.c_str(),
                     input.c_str(),
-                    database.c_str(),
+                    dblist,
                     output.c_str(),
                     valEVAL,
                     valNOHITS,
@@ -530,3 +540,26 @@ int main( int argc, char *argv[] )
 }
 
 // -------------------------------------------------------------------------
+// GetDbNames: form a list of Db names separated by commas and written in 
+// one string;
+// database, input string of database names separated by commas;
+// dblist, vector of database names
+//
+void GetDbNames(std::string database, std::vector<std::string>& dblist)
+{
+    MYMSG( "Main::GetDnNames", 5 );
+    std::string::size_type pos;
+    dblist.clear();
+    for( pos = database.find(','); !database.empty(); pos = database.find(',')) {
+        std::string dbname = database.substr(0, pos);
+        if( dbname.empty())
+            throw MYRUNTIME_ERROR("Invalid database specified by option -d.");
+        dblist.push_back(std::move(dbname));
+        if( pos == std::string::npos )
+            break;
+        database = database.substr(pos+1);
+    }
+    std::sort(dblist.begin(), dblist.end());
+    auto last = std::unique(dblist.begin(), dblist.end());
+    dblist.erase(last, dblist.end());
+}

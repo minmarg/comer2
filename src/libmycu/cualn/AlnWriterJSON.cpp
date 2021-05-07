@@ -57,7 +57,7 @@ void AlnWriter::WriteResultsJSON()
         bool hitsfound = p_finalindxs_ != NULL && p_finalindxs_->size()>0;
 
         written = WriteSearchInformationJSON(ptmp, szTmpBuffer/*maxsize*/,
-            mstr_set_dbname_, mstr_set_prodbsize_, mstr_set_ndbentries_,
+            mstr_set_dbnamelist_, mstr_set_prodbsize_, mstr_set_ndbentries_,
             vec_logevthld_[qrysernr_], indent, annotlen, hitsfound );
 
         BufferData( fp,
@@ -285,7 +285,7 @@ int AlnWriter::WriteQueryDescriptionJSON(
 int AlnWriter::WriteSearchInformationJSON( 
     char*& outptr,
     int maxsize,
-    const char* dbname,
+    const std::vector<std::string>& dbnamelist,
     const size_t dbsize,
     const size_t ndbentries,
     const float logevthrld,
@@ -293,45 +293,66 @@ int AlnWriter::WriteSearchInformationJSON(
     const int /*annotlen*/,
     const bool found )
 {
-    static const int envlpines = 2;//number of lines wrapping a database record
+    static const size_t maxszname = 99;//max db name length
+    static const int envlpines = 7;//number of lines wrapping a database record
     static const int headlines = 4;//number of lines for information
     static const int maxfieldlen = 40;//JSON max field length
     static const int maxlinelen = 90;//maximum length of lines other than alignment lines
-    int written, szname = 0, namelen = 0;
-    int size = 0;
+    int written, size = 0;
+    const char* dots = "      \"...\"" NL;
+    //const int szdots = (int)strlen(dots);
 
-    maxsize -= envlpines * maxfieldlen + headlines * maxlinelen;
-    if( dbname ) {
-        dbname = my_basename(dbname);
-        szname = namelen = (int)strlen(dbname);
-    }
-    if( maxsize < szname )
-        szname = maxsize;
+    std::function<bool(int)> lfn = 
+        [&maxsize](int szdelta) {
+            maxsize -= szdelta;
+            return(maxsize < 1);
+        };
 
-    if( szname < 1 )
+    if(lfn(maxfieldlen*envlpines))
+        //7, minimum database section lines (including 1 name or dots)
         return size;
 
     written = sprintf(outptr,
             "  \"database\": {%s"
-            "    \"name\": \"",NL);
-    outptr += written;
-    size += written;
-    strncpy( outptr, my_basename(dbname), szname );
-    outptr += szname;
-    size += szname;
-    if(szname < namelen && 3 < szname)
-        for(int i=1; i<=3; i++) *(outptr-i) = '.';
-    written = sprintf( outptr,"\",%s",NL);
+            "    \"names\": [%s",NL,NL);
     outptr += written;
     size += written;
 
+    //print database names
+    //for(const std::string& dbname: dbnamelist) {
+    for(size_t i = 0; i < dbnamelist.size(); i++) {
+        int outpos = 0;
+        size_t szname = dbnamelist[i].size();
+        if(maxszname < szname)
+            szname = maxszname;
+        if(lfn((int)(szname+15))) {
+            written = sprintf( outptr,"%s",dots);
+            outptr += written;
+            size += written;
+            break;
+        }
+        written = sprintf( outptr,"      \"");
+        outptr += written;
+        size += written;
+        FormatDescriptionJSON(outptr, dbnamelist[i].c_str(), szname+1, outpos);
+        size += outpos;
+        written = (i+1 < dbnamelist.size())? 
+            sprintf( outptr,"\",%s",NL): sprintf( outptr,"\"%s",NL);
+        outptr += written;
+        size += written;
+    }
+
     written = sprintf(outptr,
+            "    ],%s"
             "    \"number_of_profiles\": %zu,%s"
             "    \"number_of_positions\": %zu%s"
             "  },%s",
-            ndbentries,NL,dbsize,NL,NL);
+            NL,ndbentries,NL,dbsize,NL,NL);
     outptr += written;
     size += written;
+
+    if(lfn(maxlinelen*headlines))
+        return size;
 
     if( found ) {
         written = sprintf( outptr,

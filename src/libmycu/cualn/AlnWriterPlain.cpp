@@ -56,7 +56,7 @@ void AlnWriter::WriteResultsPlain()
         bool hitsfound = p_finalindxs_ != NULL && p_finalindxs_->size()>0;
 
         written = WriteSearchInformationPlain(ptmp, szTmpBuffer/*maxsize*/,
-            mstr_set_dbname_, mstr_set_prodbsize_, mstr_set_ndbentries_,
+            mstr_set_dbnamelist_, mstr_set_prodbsize_, mstr_set_ndbentries_,
             vec_logevthld_[qrysernr_], indent, annotlen, hitsfound );
 
         BufferData( fp,
@@ -247,7 +247,7 @@ int AlnWriter::WriteQueryDescriptionPlain(
 int AlnWriter::WriteSearchInformationPlain( 
     char*& outptr,
     int maxsize,
-    const char* dbname,
+    const std::vector<std::string>& dbnamelist,
     const size_t dbsize,
     const size_t ndbentries,
     const float logevthrld,
@@ -255,32 +255,48 @@ int AlnWriter::WriteSearchInformationPlain(
     const int annotlen,
     const bool found )
 {
-    int written, szname = 0, namelen = 0;
-    int size = 0;
+    const size_t maxszname = 100;//max db name length
+    int written, size = 0;
+    const char* dots = "..." NL NL;
+    const int szdots = (int)strlen(dots);
 
-    maxsize -= 20 + 100 + 2 * indent + annotlen + 100;
-    if( dbname ) {
-        dbname = my_basename(dbname);
-        szname = namelen = (int)strlen(dbname);
-    }
-    if( maxsize < szname )
-        szname = maxsize;
+    std::function<bool(int)> lfn = 
+        [&outptr, maxsize, dots, szdots, &written, &size](int szdelta) {
+            if(maxsize < size + szdelta) {
+                if(size + szdots < maxsize) {
+                    written = sprintf( outptr, "%s",dots);
+                    outptr += written;
+                    size += written;
+                }
+                return true;
+            }
+            return false;
+        };
 
-    if( szname < 1 )
+    if(lfn(30))
         return size;
 
-    written = sprintf( outptr, "%s%s Database:%s",NL,NL,NL);
+    written = sprintf( outptr, "%s%s Database(s):%s",NL,NL,NL);
     outptr += written;
     size += written;
 
-    strncpy( outptr, my_basename(dbname), szname );
-    outptr += szname;
-    size += szname;
+    //print database names
+    for(const std::string& dbname: dbnamelist) {
+        size_t szname = dbname.size();
+        if(maxszname < szname)
+            szname = maxszname;
+        if(lfn((int)(szname+2)))
+            return size;
+        strncpy( outptr, dbname.c_str(), szname);
+        outptr += szname;
+        size += (int)szname;
+        if(szname < dbname.size() && 3 < szname)
+            for(int i=1; i<=3; i++) *(outptr-i) = '.';
+        size += PutNL(outptr);
+    }
 
-    if(szname < namelen && 3 < szname)
-        for(int i=1; i<=3; i++) *(outptr-i) = '.';
-
-    size += PutNL(outptr);
+    if(lfn(indent+40))
+        return size;
 
     for(int i=0; i<indent; i++, size++ ) *outptr++ = ' ';
 
@@ -288,11 +304,17 @@ int AlnWriter::WriteSearchInformationPlain(
     outptr += written;
     size += written;
 
+    if(lfn(indent+50))
+        return size;
+
     for(int i=0; i<indent; i++, size++ ) *outptr++ = ' ';
 
     written = sprintf( outptr, "%zu total positions%s%s%s",dbsize,NL,NL,NL);
     outptr += written;
     size += written;
+
+    if(lfn(annotlen*2))
+        return size;
 
     if( found ) {
         written = sprintf( outptr," Profiles found below the e-value threshold:");

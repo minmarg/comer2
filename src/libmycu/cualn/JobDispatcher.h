@@ -57,7 +57,7 @@ public:
     JobDispatcher(
             const char* configfile,
             const char* input,
-            const char* database,
+            const std::vector<std::string>& dblist,
             const char* output,
             float eval_thld,
             int no_hits,
@@ -70,7 +70,7 @@ public:
 
     const char*     GetConfigFile() const { return configFile_; }
     const char*     GetInput() const            { return input_; }
-    const char*     GetDatabase() const         { return database_; }
+    const std::vector<std::string>& GetDbNamelist() const { return dblist_; }
     const char*     GetOutput() const           { return output_; }
 
     double          GetEvalueUpper() const  { return eval_upper_; }
@@ -120,7 +120,7 @@ protected:
 
 
     void CreateReader( 
-        const char* dbname,
+        const std::vector<std::string>& dbnamelist,
         bool mapped,
         int nqueries,
         Configuration* config
@@ -140,7 +140,7 @@ protected:
     void CreateAlnWriter( 
         Configuration* config,
         const char* outdirname,
-        const char* dbname,
+        const std::vector<std::string>& dbnamelist,
         size_t prodbsize,
         size_t ndbentries,
         int nqueries
@@ -259,8 +259,8 @@ protected:
 private:
     const char*             configFile_;//configuration file of statistical parameters
     const char*             input_;//input's filename
-    const char*             database_;//profile database
     const char*             output_;//pattern for output file (null=standard output)
+    std::vector<std::string> dblist_;//profile databases
 //     AbstractScoreMatrix<>*    scoreSystem_;//profile scoring system
     Configuration           config_[NoCTypes];//configurations
     std::vector<CuDeviceMemory*> memdevs_;//memory configurations for devices
