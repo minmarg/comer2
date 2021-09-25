@@ -4,7 +4,7 @@ protein remote homology search and alignment
 (C)2013-2021 Mindaugas Margelevicius,
 Institute of Biotechnology, Vilnius University
 
-v2.3.1
+v2.3.2
 
 # Description
 

@@ -592,23 +592,52 @@ bool TdDataReader::ReadDataChunk(
     if( chunkdatasize < 1 || chunkdatalen < 1 || chunknpros < 1 )
         throw MYRUNTIME_ERROR( preamb + "Invalid requested data sizes.");
 
-    if( bdbClengths_to_ <= bdbCdata_to_ ) {
-        //current buffer has been processed, read another block
-        if( !ReadLengthsAndDescEndAddrs())
-            return false;
-    }
-
     pbdbC->AllocateSpace(chunkdatasize, chunknpros);
 
     int* plens = bdbClengths_.get();
     char strbuf[BUF_MAX];
     int prolen;
+    size_t nskipped = 0;//#skipped profiles
     size_t iinit, i, szpm1, szpmtotal = 0, totlen = 0, npros = 0;
 
+    //print warning if there profiles have been skipped
+    std::function<void(size_t)> lfWarnifSkipped = [&strbuf](size_t nskpd) {
+        if(nskpd) {
+            sprintf(strbuf, 
+              "IMPOSSIBLE ALIGNMENT with %zu Db profile(s) due to "
+              "memory limit (GPU or --dev-mem): SKIPPED.", nskpd);
+            warning(strbuf);
+        }
+    };
+
+    //{{NOTE: skip all profiles (sorted by length) that do not fit into memory
+    for(;;) {
+        if( bdbClengths_to_ <= bdbCdata_to_ ) {
+            //current buffer has been processed, read another block
+            if( !ReadLengthsAndDescEndAddrs()) {
+                lfWarnifSkipped(nskipped);
+                return false;
+            }
+            plens = bdbClengths_.get();
+        }
 #ifdef __DEBUG__
-    if( plens == NULL )
-        throw MYRUNTIME_ERROR( preamb + "Memory access error.");
+        if( plens == NULL )
+            throw MYRUNTIME_ERROR( preamb + "Memory access error.");
 #endif
+        if( bdbCdata_to_ < bdbClengths_from_ )
+            throw MYRUNTIME_ERROR( preamb + "Invalid data index.");
+
+        prolen = plens[bdbCdata_to_ - bdbClengths_from_];
+        szpm1 = PMBatchProData::GetPMDataSize1((size_t)prolen);
+        if(szpm1 < chunkdatasize && (size_t)prolen < chunkdatalen && 1 < chunknpros) {
+            lfWarnifSkipped(nskipped);
+            break;
+        }
+        nskipped++;
+        bdbCdata_to_++;
+        bdbCdata_poss_to_ += prolen;
+    }
+    //}}
 
     bdbCdata_from_ = bdbCdata_to_;
     bdbCdata_poss_from_ = bdbCdata_poss_to_;

@@ -20,7 +20,7 @@
 // 2.04   JSON format for output introduced
 
 
-static const char*  version = "2.03.01";
+static const char*  version = "2.03.02";
 static const char*  verdate = "";
 
 static const char*  instructs = "\n\
