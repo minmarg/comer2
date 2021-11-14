@@ -962,13 +962,16 @@ void TextReadProfileData(T* fp,
 
 
     //{{statistical parameters
-    if(( emsg = skip_comments( fp, buffer )) != 0 )
-        throw MYRUNTIME_ERROR( preamb + 
-        "Wrong profile format at the end: " + TranslateReadError( emsg ));
+    if( !lineread )
+        if(( emsg = skip_comments( fp, buffer )) != 0 )
+            throw MYRUNTIME_ERROR( preamb + 
+            "Wrong profile format at the end: " + TranslateReadError( emsg ));
 
     if( feof( fp ) || buffer.empty())
         throw MYRUNTIME_ERROR( preamb + 
         "Wrong profile format at the end: No statistical parameters." );
+
+    lineread = true;
 
     if(( p = strstr( buffer.c_str(), patstrEXPNN )) != NULL ) {
         p += strlen( patstrEXPNN );
