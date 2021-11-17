@@ -599,6 +599,8 @@ bool TdDataReader::ReadDataChunk(
     int prolen;
     size_t nskipped = 0;//#skipped profiles
     size_t iinit, i, szpm1, szpmtotal = 0, totlen = 0, npros = 0;
+    //NOTE: profile fields are aligned; take account of this memory alignment here!
+    const size_t szpoverhead = PMBatchProData::GetNoFields() * TdDataReader::s_szdatalign_;
 
     //print warning if there profiles have been skipped
     std::function<void(size_t)> lfWarnifSkipped = [&strbuf](size_t nskpd) {
@@ -629,7 +631,9 @@ bool TdDataReader::ReadDataChunk(
 
         prolen = plens[bdbCdata_to_ - bdbClengths_from_];
         szpm1 = PMBatchProData::GetPMDataSize1((size_t)prolen);
-        if(szpm1 < chunkdatasize && (size_t)prolen < chunkdatalen && 1 < chunknpros) {
+        if( szpm1 + szpoverhead < chunkdatasize && 
+            (size_t)prolen < chunkdatalen && 
+            1 < chunknpros) {
             lfWarnifSkipped(nskipped);
             break;
         }
@@ -656,7 +660,7 @@ bool TdDataReader::ReadDataChunk(
             throw MYRUNTIME_ERROR( preamb + strbuf);
         }
         szpm1 = PMBatchProData::GetPMDataSize1((size_t)prolen);
-        if( chunkdatasize < szpmtotal + szpm1 || 
+        if( chunkdatasize < szpmtotal + szpm1 + szpoverhead || 
             chunkdatalen < totlen + prolen ||
             chunknpros < npros+1 )
             break;

@@ -11,4 +11,5 @@ added; bug fix when the profile size perfectly aligns with the file page size;
 bug fix for uniquely determining profle end when reading multiple of them;
 2.03.01, May 2021  *  Multiple database search implemented;
 2.03.02, September 2021  *  Skipping (large) Db profiles with which alignment is 
-impossible due to memory limit 
+impossible due to memory limit; Taking memory alignment size into consideration 
+when calculating the size of the data to be transferred
