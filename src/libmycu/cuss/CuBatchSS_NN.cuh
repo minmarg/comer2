@@ -184,7 +184,8 @@ void FormatInputConfigurationL(
     if( threadIdx.x == 0 ) {
         lambda = __fdividef( rintf(lambda*10.0f), 10.0f);
         if( lambda <= 0.0f )
-            lambda = 1.0f;
+            //distribution will have a heavy tail for those rare cases when the expected score per position is positive:
+            lambda = 0.1f;//1.0f;
         if( 10.0f < lambda )
             lambda = 10.0f;
         if( nqyposs < db1prolen )

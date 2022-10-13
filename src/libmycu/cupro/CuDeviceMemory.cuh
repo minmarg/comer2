@@ -720,6 +720,7 @@ void CuDeviceMemory::GetTotalMemoryReqs(
     //{{memory for db profile data itself
     *maxsizedbposs = PMBatchProData::GetPMDataSizeUBTotal( maxdbposs );
     *maxsizedbposs = SLC_MIN( *maxsizedbposs, maxamountfordbposs );
+    *maxsizedbposs += pmv2DTotFlds * cszalnment;//all fields aligned;
     *maxsizedbposs = ALIGN_UP( *maxsizedbposs, cszalnment );
     //}}{{memory for scores
     *szsmatrix = nqyposs * maxdbposs * sizeof(CUBSM_TYPE);

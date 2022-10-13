@@ -243,7 +243,7 @@ __global__ void ExecDP_Btck_Unroll32x(
 
     //cache two diagonals from the previous (along the x axis) diagonal block;
     //the structure of tmpdpdiagbuffers is position-specific (1D, along x-axis)
-    if( 0 <= x-1 && x < (int)dbprolenCache ) {
+    if( 0 <= x-1 && x-1 < (int)dbprolenCache ) {
         DPLocCacheBuffer<CUDP_2DCACHE_DIM_D>( diag1Cache, tmpdpdiagbuffers, dbpos-1, 0, dblen );
         DPLocCacheBuffer<CUDP_2DCACHE_DIM_D>( diag2Cache, tmpdpdiagbuffers, dbpos-1, 
                           dpdssDiag2 * nTDPDiagScoreSubsections * dblen, 

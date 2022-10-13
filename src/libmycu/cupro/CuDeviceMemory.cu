@@ -137,7 +137,7 @@ CuDeviceMemory::CuDeviceMemory(
 
         size_t heapaligned = ALIGN_UP((size_t)d_heap_, cszalnment );
         for( int a = 0; a < nareas_; a++ )
-            sz_heapsections_[a][ddsEndOfPadding] = (size_t)d_heap_ - heapaligned;
+            sz_heapsections_[a][ddsEndOfPadding] = heapaligned - (size_t)d_heap_;
     }
 }
 

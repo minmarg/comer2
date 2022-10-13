@@ -111,6 +111,8 @@ void FormatDescriptionJSON(
         else if(*desc=='"'||*desc=='\\'||*desc=='/') {
             *outptr++ = '\\';
             outpos++;
+            if(maxoutlen <= outpos)
+                break;
         }
         *outptr++ = *desc++;
         outpos++;

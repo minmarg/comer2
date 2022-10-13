@@ -227,6 +227,10 @@ void PredictEVDParametersSS18(
         //WRITE conditional mean estimate of scale
         *out_scale = (1.0f - ibeta) * scaleE + 
             ibeta * outparamsCache[cuss_NN_L_SCALE];
+
+        //TODO: consider increasing the scale parameter by a factor of 2 for rare cases of 
+        //TODO: positive expected score per position;
+        //if(lambda<=0.0f) *out_scale *= 2.f;
     }
 
     __syncthreads();

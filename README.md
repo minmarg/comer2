@@ -4,7 +4,7 @@ protein remote homology search and alignment
 (C)2013-2021 Mindaugas Margelevicius,
 Institute of Biotechnology, Vilnius University
 
-v2.3.2
+v2.3.3
 
 # Description
 
@@ -18,6 +18,11 @@ v2.3.2
 
    COMER2 is licensed under GNU General Public License version 3. Please find
    the LICENSE and COPYING files included in the software package.
+
+# Web service
+
+   COMER2 is available as a web service hosted on
+   [The COMER web server](https://bioinformatics.lt/comer).
 
 # Available Platforms
 

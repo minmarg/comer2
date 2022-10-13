@@ -472,12 +472,15 @@ void MSA::ReadSTOCKHOLM1( const char* filename, int* format )
                     throw MYRUNTIME_ERROR( preamb + "Not enough memory.");
                 push( svs );
                 svaseqs.Push( svs );
-                if(( svn = ( mystring* )svhdngs.GetValueAt( sind )) == NULL )
-                    throw MYRUNTIME_ERROR( preamb + "Memory access error.");
-                if( GetKeepSeqDescriptions())
-                    svs->AppendDescription( svn->c_str(), 0, svn->length());
-                delete svn;
-                svhdngs.SetValueAt( sind, svn = NULL );
+                svn = ( mystring* )svhdngs.GetValueAt( sind );
+                //if( svn == NULL )
+                //    throw MYRUNTIME_ERROR( preamb + "Sequence description in MSA not found.");
+                if(svn) {
+                    if( GetKeepSeqDescriptions())
+                        svs->AppendDescription( svn->c_str(), 0, svn->length());
+                    delete svn;
+                    svhdngs.SetValueAt( sind, svn = NULL );
+                }
             }
 
             sind++;

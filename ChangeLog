@@ -13,3 +13,6 @@ bug fix for uniquely determining profle end when reading multiple of them;
 2.03.02, September 2021  *  Skipping (large) Db profiles with which alignment is 
 impossible due to memory limit; Taking memory alignment size into consideration 
 when calculating the size of the data to be transferred
+2.03.03, September 2022  *  Bug fix in calculating initial memory padding (never 
+happens by the driver allocation model, but still...); memory alignment of all 
+fields taken into account when allocating space for db profiles in the beginning
