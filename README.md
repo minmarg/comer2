@@ -59,8 +59,8 @@ v2.3.3
 
 # COMER2 Profile databases
 
-   Up-to-date COMER2 profile databases for PDB70, SCOP70, and PFAM sequence 
-   families are available for download at:
+   Up-to-date COMER2 profile databases for PDB70, ECOD_F70, SCOPe70, NCBI_CD, 
+   COG/KOG, and PFAM sequence families are available for download at:
    [https://sourceforge.net/projects/comer2/files/comer2-profile-databases-2.02](https://sourceforge.net/projects/comer2/files/comer2-profile-databases-2.02)
 
 # Structure of the Package
