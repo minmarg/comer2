@@ -301,7 +301,7 @@ docker run --rm --name=comer2 --gpus=all --user="$(id -u):$(id -g)" -ti \
    All executables in the COMER2 software package invoked with the "-h"
    option print a list of valid command-line options.
 
-# References
+# References for citing
 
 Margelevicius, M. (2016) Bayesian nonparametrics in protein remote homology
 search. Bioinformatics 32(18), 2744-2752.
@@ -314,6 +314,12 @@ profile-profile alignments. BMC Bioinformatics 20, 419.
 
 Margelevicius, M. (2020) COMER2: GPU-accelerated sensitive and specific
 homology searches. Bioinformatics 36(11), 3570-3572.
+
+Web server:
+
+Dapkunas, J., Margelevicius, M. The COMER web server for protein analysis by 
+homology. Bioinformatics 39(1), btac807 
+(https://doi.org/10.1093/bioinformatics/btac807).
 
 # Funding
 
