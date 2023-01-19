@@ -317,8 +317,8 @@ homology searches. Bioinformatics 36(11), 3570-3572.
 
 Web server:
 
-Dapkunas, J., Margelevicius, M. The COMER web server for protein analysis by 
-homology. Bioinformatics 39(1), btac807 
+Dapkunas, J., Margelevicius, M. (2023) The COMER web server for protein 
+analysis by homology. Bioinformatics 39(1), btac807 
 (https://doi.org/10.1093/bioinformatics/btac807).
 
 # Funding
